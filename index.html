@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ground3D-LMM · Fine-Grained 3D Point Grounding and Spatial Reasoning with LMM</title>
+<meta name="description" content="Ground3D-LMM: 3D point grounding and spatial reasoning with metric numeric outputs. ECCV 2026 Submission #5032.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    /* LIGHT (default) */
+    --bg:#fafaf7;--bg2:#f4f4ee;--bg3:#ebebe2;--card:#ffffff;
+    --accent:#0284c7;--accent2:#6366f1;--accent3:#059669;
+    --text:#0f172a;--text2:#475569;--text3:#94a3b8;
+    --border:#e2e2d6;--border2:#cbd5e1;
+    --nav-bg:rgba(250,250,247,0.85);
+    --code-text:#334155;
+    --font:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;
+  }
+  [data-theme="dark"]{
+    --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;--card:#141c2e;
+    --accent:#38bdf8;--accent2:#818cf8;--accent3:#34d399;
+    --text:#f1f5f9;--text2:#94a3b8;--text3:#475569;
+    --border:#1e2d45;--border2:#2d3f5e;
+    --nav-bg:rgba(10,14,26,0.85);
+    --code-text:#94a3b8;
+  }
+  html{scroll-behavior:smooth}
+  html,body{overflow-x:hidden}
+  .sec{scroll-margin-top:80px;position:relative}
+  .sec:nth-of-type(even){padding-top:32px;padding-bottom:32px;margin-top:32px;margin-bottom:32px}
+  .sec:nth-of-type(even)::before{content:'';position:absolute;left:50%;transform:translateX(-50%);top:0;bottom:0;width:100vw;background:var(--bg2);z-index:-1;transition:background-color .2s}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:17px;font-weight:500;line-height:1.65;-webkit-font-smoothing:antialiased;transition:background-color .2s,color .2s}
+  a{color:inherit;text-decoration:none}
+
+  /* NAV */
+  .nav-wrap{position:sticky;top:0;z-index:1000;background:var(--nav-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:0.5px solid var(--border);transition:transform .3s ease,background-color .2s}
+  .nav-wrap.hidden{transform:translateY(-100%)}
+  nav{max-width:1080px;margin:0 auto;padding:14px 40px;display:flex;align-items:center;justify-content:space-between}
+  .nav-logo{font-size:18px;font-weight:700;letter-spacing:-.3px;color:var(--text);display:inline-flex;align-items:center}
+  .nav-logo img{height:28px;width:auto;display:block;margin-right:10px}
+  .nav-logo span{color:var(--accent)}
+  .hero-logo{display:block;margin:0 auto 20px;height:88px;width:auto}
+  .authors{font-size:17px;font-weight:500;color:var(--text2);max-width:860px;margin:0 auto 10px;line-height:1.6}
+  .authors .author{color:var(--text);font-weight:600;white-space:nowrap}
+  .authors .author sup{font-size:11px;color:var(--accent);font-weight:700;margin-left:1px}
+  .authors .sep{color:var(--text3);margin:0 4px}
+  .affils{font-size:14px;font-weight:500;color:var(--text2);max-width:860px;margin:0 auto 24px;line-height:1.6}
+  .affils .affil{white-space:nowrap;margin:0 10px}
+  .affils sup{font-size:11px;color:var(--accent);font-weight:700;margin-right:3px}
+  .corr{font-size:14px;font-weight:500;color:var(--text2);margin:0 auto 24px;line-height:1.5}
+  .corr a{color:var(--accent);font-family:var(--mono);font-weight:600}
+  .corr a:hover{text-decoration:underline}
+  .nav-links{display:flex;gap:24px;align-items:center}
+  .nav-links a{color:var(--text2);font-size:15px;font-weight:600;transition:color .15s}
+  .nav-links a:hover{color:var(--accent)}
+  .nav-btn{background:var(--accent);color:#fff !important;font-size:14px;font-weight:600;padding:8px 16px;border-radius:6px}
+  [data-theme="dark"] .nav-btn{color:#0a0e1a !important}
+  .nav-toggle{display:none;background:none;border:0.5px solid var(--border2);color:var(--text);padding:4px 10px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:14px}
+  .theme-toggle{background:transparent;border:0.5px solid var(--border2);color:var(--text2);width:30px;height:30px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-family:inherit;font-size:14px;transition:all .15s;padding:0}
+  .theme-toggle:hover{color:var(--accent);border-color:var(--accent)}
+  .theme-toggle .icon-moon{display:inline}
+  .theme-toggle .icon-sun{display:none}
+  [data-theme="dark"] .theme-toggle .icon-moon{display:none}
+  [data-theme="dark"] .theme-toggle .icon-sun{display:inline}
+
+  .page{max-width:1080px;margin:0 auto;padding:48px 40px}
+
+  /* HERO */
+  .hero{text-align:center;padding:24px 0 12px;margin-bottom:8px}
+  .hero .hero-sub{margin-left:auto;margin-right:auto}
+  .hero .hero-btns{justify-content:center}
+  .gap-line{font-size:21px;font-weight:700;color:var(--text);max-width:780px;margin:0 auto 22px;line-height:1.4;letter-spacing:-.2px}
+  .gap-line em{font-style:italic;color:var(--accent)}
+  .soon{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;background:var(--bg3);color:var(--accent2);padding:2px 7px;border-radius:4px;margin-left:6px;letter-spacing:.3px;text-transform:uppercase;vertical-align:middle}
+  .venue-tag{display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--accent2);font-family:var(--mono);margin-bottom:20px}
+  .venue-tag span{width:6px;height:6px;background:var(--accent2);border-radius:50%;display:inline-block}
+  h1{font-size:52px;font-weight:700;line-height:1.12;letter-spacing:-1px;margin-bottom:18px}
+  h1 em{font-style:normal;color:var(--accent)}
+  .tagline{font-family:var(--mono);font-size:16px;font-weight:600;color:var(--accent3);margin-bottom:22px;letter-spacing:.3px}
+  .hero-sub{font-size:18px;font-weight:500;color:var(--text2);max-width:860px;line-height:1.7;margin-bottom:32px}
+  .hero-sub strong{color:var(--text)}
+  .hero-btns{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:40px}
+  .btn-primary{background:var(--accent);color:#fff !important;font-weight:600;font-size:15px;padding:11px 22px;border-radius:8px;font-family:var(--font);display:inline-flex;align-items:center;gap:6px}
+  [data-theme="dark"] .btn-primary{color:#0a0e1a !important}
+  .btn-primary:hover{filter:brightness(1.1)}
+  .btn-secondary{background:transparent;color:var(--text);font-weight:600;font-size:15px;padding:11px 22px;border-radius:8px;border:0.5px solid var(--border2);font-family:var(--font);display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,color .15s}
+  .btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-icon{width:14px;height:14px;display:inline-block;vertical-align:middle}
+
+  /* STATS STRIP */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden;margin-bottom:64px}
+  .stat{background:var(--card);padding:20px 22px}
+  .stat-num{font-size:30px;font-weight:700;color:var(--accent);font-family:var(--mono);letter-spacing:-1px}
+  .stat-lbl{font-size:13px;font-weight:600;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+
+  /* SECTION HEADS */
+  .sec{margin-bottom:56px}
+  .sec-label{font-size:13px;font-weight:600;font-family:var(--mono);color:var(--accent3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px}
+  .sec-title{font-size:30px;font-weight:700;letter-spacing:-.5px;margin-bottom:8px;color:var(--text)}
+  .sec-sub{font-size:17px;font-weight:500;color:var(--text2);margin-bottom:28px}
+
+  /* DEMO TABS */
+  .demo-tabs{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
+  .tab{font-size:13px;font-weight:500;font-family:var(--mono);padding:7px 14px;border-radius:20px;border:0.5px solid var(--border2);color:var(--text3);cursor:pointer;transition:all .15s;background:var(--bg2)}
+  .tab:hover{color:var(--text2)}
+  .tab.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+  [data-theme="dark"] .tab.active{color:#0a0e1a}
+  .demo-card{background:var(--card);border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
+  .demo-header{display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:0.5px solid var(--border);background:var(--bg3)}
+  .demo-dot{width:8px;height:8px;border-radius:50%}
+  .demo-label{font-size:11px;font-family:var(--mono);color:var(--text3);margin-left:auto}
+  .demo-body{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .demo-col{padding:18px}
+  .demo-col+.demo-col{border-left:0.5px solid var(--border)}
+  .demo-tag{font-size:12px;font-weight:600;font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:10px}
+  .demo-q{font-size:16px;font-weight:500;color:var(--text2);line-height:1.55;margin-bottom:12px}
+  .demo-a{font-size:16px;font-weight:500;color:var(--text);line-height:1.55}
+  .demo-a strong{color:var(--accent3)}
+  .demo-mask{width:100%;height:100px;background:linear-gradient(135deg,var(--bg3) 40%,var(--bg2));border-radius:8px;margin-bottom:12px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .ply-viewer{width:100%;height:380px;background:var(--bg3);border-bottom:0.5px solid var(--border);position:relative;overflow:hidden}
+  .ply-viewer canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none;outline:none}
+  .ply-viewer canvas:active{cursor:grabbing}
+  .ply-loader{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text2);background:var(--card);padding:8px 14px;border-radius:6px;border:0.5px solid var(--border)}
+  .ply-hint{position:absolute;bottom:10px;right:12px;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--text3);background:var(--card);padding:4px 8px;border-radius:4px;border:0.5px solid var(--border);opacity:.9;pointer-events:none}
+  .mask-blob{position:absolute;background:rgba(56,189,248,.18);border:1.5px solid var(--accent);border-radius:50% 40% 55% 35%;width:60px;height:48px;left:36%;top:24%}
+  .mask-blob-2{position:absolute;background:rgba(129,140,248,.16);border:1.5px solid var(--accent2);border-radius:40% 55% 45% 50%;width:46px;height:38px;left:18%;top:50%}
+  .mask-dot{position:absolute;width:3px;height:3px;background:var(--accent);border-radius:50%}
+  .mask-label{font-size:9px;font-family:var(--mono);color:var(--accent2);z-index:1;background:var(--bg3);padding:2px 6px;border-radius:4px;border:0.5px solid var(--border)}
+  .turn{padding:8px 0;border-top:0.5px dashed var(--border)}
+  .turn:first-child{border-top:none;padding-top:0}
+  .turn .who{font-family:var(--mono);font-size:9px;letter-spacing:.8px;text-transform:uppercase;margin-bottom:3px}
+  .turn .who.u{color:var(--accent2)}
+  .turn .who.a{color:var(--accent3)}
+
+  /* TASKS GRID */
+  .tasks-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .task-card{background:var(--card);border:0.5px solid var(--border);border-radius:10px;padding:18px;transition:border-color .15s}
+  .task-card:hover{border-color:var(--border2)}
+  .task-icon{font-size:24px;margin-bottom:10px}
+  .task-name{font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px}
+  .task-desc{font-size:14px;font-weight:500;color:var(--text2);line-height:1.5}
+
+  /* PIPELINE */
+  .pipeline{display:flex;gap:0;align-items:stretch;border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
+  .pipe-step{flex:1;padding:20px;background:var(--card);position:relative}
+  .pipe-step+.pipe-step{border-left:0.5px solid var(--border)}
+  .pipe-num{font-size:12px;font-weight:600;font-family:var(--mono);color:var(--accent);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+  .pipe-title{font-size:16px;font-weight:700;margin-bottom:6px;color:var(--text)}
+  .pipe-desc{font-size:14px;font-weight:500;color:var(--text2);line-height:1.5}
+
+  /* RESULTS TABLES */
+  .results-card{background:var(--card);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+  .results-head{padding:14px 18px;border-bottom:0.5px solid var(--border);background:var(--bg3);display:flex;justify-content:space-between;align-items:center}
+  .results-head h3{font-size:16px;font-weight:700;color:var(--text)}
+  .results-head span{font-size:13px;font-weight:600;font-family:var(--mono);color:var(--text2)}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--text2);padding:13px 20px;text-align:left;font-weight:700;font-family:var(--mono)}
+  td{font-size:15px;font-weight:500;padding:12px 20px;border-top:0.5px solid var(--border);color:var(--text2)}
+  th.num,td.num{text-align:right}
+  tr.ours td{background:rgba(56,189,248,.06);color:var(--text)}
+  .val{font-family:var(--mono);color:var(--accent3);font-weight:600}
+  .val-gray{font-family:var(--mono);color:var(--text3)}
+  .badge-ours{font-size:9px;background:rgba(56,189,248,.15);color:var(--accent);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-weight:600;margin-left:6px}
+
+  /* DATASET */
+  .ds-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+  .ds-col{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:18px}
+  .ds-col h4{font-size:18px;font-weight:700;margin-bottom:12px;color:var(--text)}
+  .ds-col p{font-size:16px;font-weight:500;color:var(--text2);line-height:1.6;margin-bottom:16px}
+  .ds-stats{display:flex;flex-direction:column;gap:8px;font-size:15px}
+  .ds-stat{display:flex;justify-content:space-between;padding:10px 14px;background:var(--bg3);border-radius:6px;border:0.5px solid var(--border)}
+  .ds-stat .lbl{color:var(--text2);font-weight:500}
+  .ds-stat .v{color:var(--accent);font-family:var(--mono);font-weight:700}
+  .pipe-svg{display:block;width:100%;height:auto}
+  .pipe-heading{font-size:20px;font-weight:700;color:var(--text);margin-top:32px;margin-bottom:14px;letter-spacing:-.2px}
+  .pipe-figure{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:18px}
+  .pipe-figure img{display:block;width:100%;height:auto;border-radius:6px}
+  .pipe-caption{font-size:13px;font-weight:500;color:var(--text2);margin-top:12px;text-align:center;font-family:var(--mono)}
+
+  /* DATASET TABLE + DISTRIBUTION */
+  .splits-card{background:var(--card);border:0.5px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
+  .splits-card td.indent{padding-left:36px;color:var(--text)}
+  .splits-card tr.src td{background:var(--bg3);font-weight:700;color:var(--text)}
+  .splits-card tr.total td{font-weight:700;color:var(--text);border-top:1px solid var(--border2)}
+  .splits-card .scenes{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--text2);margin-left:8px}
+
+  .dist-card{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:20px 22px;margin-bottom:24px}
+  .dist-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px}
+  .dist-hint{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text3);margin-bottom:14px;letter-spacing:.2px}
+  .dist-row{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+  .dist-label{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text2);width:150px;flex-shrink:0;text-align:right;white-space:nowrap}
+  .dist-bar{flex:1;display:flex;height:22px;border-radius:5px;overflow:hidden;border:0.5px solid var(--border)}
+  .dist-tail{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;padding-left:4px}
+  .dist-tail .dist-leg-sw{width:9px;height:9px}
+  .dist-seg{display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:600;color:#fff;overflow:visible;white-space:nowrap;position:relative;cursor:default;transition:filter .12s}
+  .dist-seg:hover{filter:brightness(1.15)}
+  .dist-seg .seg-tip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);font-family:var(--font);font-size:12px;font-weight:600;padding:6px 10px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.15)}
+  .dist-seg .seg-tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--text)}
+  .dist-seg:hover .seg-tip{opacity:1}
+  .dist-bar{overflow:visible !important}
+  .dist-seg:first-child{border-radius:5px 0 0 5px}
+  .dist-seg:last-child{border-radius:0 5px 5px 0}
+  .dist-legend{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:14px;padding-top:14px;border-top:0.5px dashed var(--border)}
+  .dist-leg-item{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--text2)}
+  .dist-leg-sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+  .dist-leg-pct{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);margin-left:4px}
+  .pipe-svg .sv-box{fill:var(--bg);stroke:var(--border)}
+  .pipe-svg .sv-box-active{fill:var(--bg2);stroke:var(--accent)}
+  .pipe-svg .sv-stage{fill:var(--accent)}
+  .pipe-svg .sv-text{fill:var(--text)}
+  .pipe-svg .sv-muted{fill:var(--text3)}
+  .pipe-svg .sv-arrow{stroke:var(--accent);fill:none}
+
+  /* CITE BOX */
+  .cite-box{background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:16px 20px;position:relative}
+  .cite-label{font-size:13px;font-weight:600;font-family:var(--mono);color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+  .cite-code{font-family:var(--mono);font-size:14px;font-weight:500;color:var(--code-text);line-height:1.7;white-space:pre-wrap;word-break:break-word;margin:0}
+  .cite-copy{font-size:13px;font-weight:600;font-family:var(--mono);color:var(--accent2);cursor:pointer;padding:6px 14px;border:0.5px solid var(--border2);border-radius:4px;background:transparent;transition:all .15s}
+  .cite-copy:hover{background:var(--border2);color:var(--text)}
+  .cite-copy.copied{color:var(--accent3);border-color:var(--accent3)}
+
+  /* FOOTER */
+  footer{border-top:0.5px solid var(--border);padding:24px 0 8px;margin-top:8px}
+  .footer-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  footer .ftitle{font-size:15px;font-weight:500;color:var(--text2)}
+  footer .ftitle b{color:var(--text);font-weight:700}
+  .footer-links{display:flex;gap:20px;flex-wrap:wrap}
+  .footer-links a{font-size:15px;font-weight:600;color:var(--text2)}
+  .footer-links a:hover{color:var(--accent)}
+  .fnote{font-size:13px;font-weight:600;font-family:var(--mono);color:var(--text2);text-transform:uppercase;letter-spacing:1px;padding-top:16px;border-top:0.5px dashed var(--border)}
+
+  /* RESPONSIVE */
+  @media (max-width:768px){
+    .nav-links{display:none}
+    .nav-links.open{display:flex;position:absolute;top:100%;left:0;right:0;flex-direction:column;align-items:flex-start;background:var(--bg);border-bottom:0.5px solid var(--border);padding:14px 24px;gap:12px}
+    .nav-toggle{display:block}
+    h1{font-size:28px}
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .tasks-grid{grid-template-columns:repeat(2,1fr)}
+    .pipeline{flex-direction:column}
+    .pipe-step+.pipe-step{border-left:none;border-top:0.5px solid var(--border)}
+    .demo-body{grid-template-columns:1fr}
+    .demo-col+.demo-col{border-left:none;border-top:0.5px solid var(--border)}
+    .ds-row{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="nav-wrap" id="navWrap">
+  <nav>
+    <a href="#top" class="nav-logo"><img src="logo.png" alt="Ground3D-LMM logo">Ground<span>3D</span>-LMM</a>
+    <button class="nav-toggle" id="navToggle" aria-label="Menu">≡</button>
+    <div class="nav-links" id="navLinks">
+      <a href="#demo">Demo</a>
+      <a href="#tasks">Coverage</a>
+      <a href="#dataset">Dataset</a>
+      <a href="#method">Method</a>
+      <a href="#results">Benchmark</a>
+      <a href="#cite">Citation</a>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
+        <span class="icon-moon">☾</span><span class="icon-sun">☀</span>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<div class="page" id="top">
+
+  <!-- HERO -->
+  <div class="hero">
+    <img class="hero-logo" src="logo.png" alt="Ground3D-LMM logo">
+    <h1>Fine-Grained 3D Point Grounding<br>and <em>Spatial Reasoning</em> with LMM</h1>
+    <p class="authors">
+      <span class="author">Amol Harsh<sup>1</sup></span><span class="sep">·</span>
+      <span class="author">Zongyan Han<sup>1</sup></span><span class="sep">·</span>
+      <span class="author">Jean Lahoud<sup>1</sup></span><span class="sep">·</span>
+      <span class="author">Ye Liu<sup>2</sup></span><span class="sep">·</span>
+      <span class="author">Rao Muhammad Anwer<sup>1</sup></span><span class="sep">·</span>
+      <span class="author">Hisham Cholakkal<sup>1</sup></span><span class="sep">·</span>
+      <span class="author">Salman Khan<sup>1</sup></span><span class="sep">·</span>
+      <span class="author">Fahad Shahbaz Khan<sup>1,3</sup></span>
+    </p>
+    <p class="affils">
+      <span class="affil"><sup>1</sup>Mohamed bin Zayed University of Artificial Intelligence</span>
+      <span class="affil"><sup>2</sup>The Hong Kong Polytechnic University</span>
+      <span class="affil"><sup>3</sup>Linköping University</span>
+    </p>
+    <p class="gap-line">Most 3D LMMs answer in <em>words</em>; Ground3D-LMM answers with point masks and metric numbers.</p>
+    <p class="hero-sub">
+      Natural-language queries about 3D environments become actionable when responses are verifiable and metric. We present <strong>Ground3D-LMM</strong>, a unified model that takes a point cloud and an optional RGB image as input and supports 3D spatial conversation with point-grounded responses and metric numeric outputs at both object and part granularity. We introduce the <strong>3D Grounded Measurement</strong> task and the <strong>Ground3D Dataset</strong>, a large-scale corpus with ~2.5M question–answer pairs spanning eight tasks, built on ScanNet and ScanNet++.
+    </p>
+    <div class="hero-btns">
+      <a href="#" id="paper" class="btn-primary">📄 Read the Paper</a>
+      <a href="#dataset" id="dataset-btn" class="btn-secondary">🤗 Dataset</a>
+      <a href="https://github.com/" id="code" target="_blank" rel="noopener" class="btn-secondary">⚙️ Code<span class="soon">soon</span></a>
+      <a href="#demo" class="btn-secondary">🎮 Demo</a>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-num">~2.5M</div><div class="stat-lbl">QA pairs</div></div>
+    <div class="stat"><div class="stat-num">2,500+</div><div class="stat-lbl">scenes</div></div>
+    <div class="stat"><div class="stat-num">8</div><div class="stat-lbl">task types</div></div>
+    <div class="stat"><div class="stat-num">+22.6</div><div class="stat-lbl">Acc@0.25 vs prior SOTA</div></div>
+  </div>
+
+  <!-- DEMO -->
+  <div class="sec" id="demo">
+    <div class="sec-label">Interactive preview</div>
+    <div class="sec-title">What can you ask?</div>
+    <p class="sec-sub">Natural-language queries about a 3D scene, grounded to a point-level mask and answered in real-world units.</p>
+
+    <div class="demo-tabs" id="tabs">
+      <div class="tab active" data-tab="t1">Metric estimation</div>
+      <div class="tab" data-tab="t2">Grounded measurement</div>
+      <div class="tab" data-tab="t3">Functional grounding</div>
+      <div class="tab" data-tab="t4">Distance query</div>
+      <div class="tab" data-tab="t5">Size comparison</div>
+      <div class="tab" data-tab="t6">Multi-turn</div>
+    </div>
+
+    <!-- t1 -->
+    <div class="demo-card panel" id="t1" style="display:block">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <div class="demo-label">3D Metric Estimation · ScanNet scene0673_04</div>
+      </div>
+      <div class="ply-viewer" id="plyViewer1" data-ply="scene0673_04_vh_clean_2.ply">
+        <div class="ply-loader" id="plyLoader1">loading scene…</div>
+        <div class="ply-hint">drag · scroll · right-click pan</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-col">
+          <div class="demo-tag">User query</div>
+          <p class="demo-q">"Can you tell me the length of the bathtub next to the green mat?"</p>
+        </div>
+        <div class="demo-col">
+          <div class="demo-tag">Model response</div>
+          <p class="demo-a">The length of the <strong>bathtub</strong> is <strong>1.33 m</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- t2 -->
+    <div class="demo-card panel" id="t2" style="display:none">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <div class="demo-label">3D Grounded Measurement · ScanNet scene_0231_00</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-col">
+          <div class="demo-tag">User query</div>
+          <p class="demo-q">"Segment the wooden door near the wall and report its overall size."</p>
+        </div>
+        <div class="demo-col">
+          <div class="demo-tag">Model response</div>
+          <div class="demo-mask">
+            <div class="mask-blob" style="border-radius:6%;width:38px;height:78px;left:42%;top:10%"></div>
+            <div class="mask-dot" style="left:48%;top:30%"></div>
+            <div class="mask-dot" style="left:50%;top:55%"></div>
+            <div class="mask-dot" style="left:46%;top:75%"></div>
+            <div class="mask-label">point mask · door</div>
+          </div>
+          <p class="demo-a">The <strong>door</strong> has dimensions <strong>1.33 m × 0.87 m × 0.03 m</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- t3 -->
+    <div class="demo-card panel" id="t3" style="display:none">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <div class="demo-label">Functional Grounding · ScanNet bathroom</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-col">
+          <div class="demo-tag">User query</div>
+          <p class="demo-q">"Where should one place their feet after stepping out of the tub?"</p>
+        </div>
+        <div class="demo-col">
+          <div class="demo-tag">Model response</div>
+          <div class="demo-mask">
+            <div class="mask-blob" style="border-radius:14%;width:78px;height:34px;left:24%;top:46%"></div>
+            <div class="mask-dot" style="left:32%;top:55%"></div>
+            <div class="mask-dot" style="left:48%;top:60%"></div>
+            <div class="mask-dot" style="left:60%;top:54%"></div>
+            <div class="mask-label">affordance · mat</div>
+          </div>
+          <p class="demo-a">They can put their feet on the <strong>bathroom mat</strong> near the bathtub.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- t4 -->
+    <div class="demo-card panel" id="t4" style="display:none">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <div class="demo-label">3D Distance Query · entry hallway</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-col">
+          <div class="demo-tag">User query</div>
+          <p class="demo-q">"What's the distance between the light switch and the door lock?"</p>
+        </div>
+        <div class="demo-col">
+          <div class="demo-tag">Model response</div>
+          <div class="demo-mask">
+            <div class="mask-blob" style="width:18px;height:18px;left:28%;top:38%;border-radius:50%"></div>
+            <div class="mask-blob-2" style="width:18px;height:18px;left:64%;top:38%;border-radius:50%"></div>
+            <div class="mask-label">d = 0.20 m</div>
+          </div>
+          <p class="demo-a">The <strong>light switch</strong> and the <strong>door lock</strong> are <strong>0.20 m</strong> apart.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- t5 -->
+    <div class="demo-card panel" id="t5" style="display:none">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <div class="demo-label">3D Size Comparison · ScanNet scene_0044_00</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-col">
+          <div class="demo-tag">User query</div>
+          <p class="demo-q">"Which is larger, the door or the bathtub?"</p>
+        </div>
+        <div class="demo-col">
+          <div class="demo-tag">Model response</div>
+          <div class="demo-mask">
+            <div class="mask-blob" style="width:80px;height:50px;left:46%;top:30%"></div>
+            <div class="mask-blob-2" style="border-radius:6%;width:24px;height:60px;left:14%;top:22%"></div>
+            <div class="mask-label">V(tub) &gt; V(door)</div>
+          </div>
+          <p class="demo-a">The <strong>bathtub</strong> (1.33 m × 0.99 m × 0.58 m) is larger than the <strong>door</strong> (1.33 m × 0.87 m × 0.03 m).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- t6 -->
+    <div class="demo-card panel" id="t6" style="display:none">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <div class="demo-label">Multi-turn Conversation · context-aware grounding</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-col">
+          <div class="demo-tag">Dialogue</div>
+          <div class="turn"><div class="who u">Q1 · User</div><div style="color:var(--text2);font-size:13px">"How easy would it be to get out using the door?"</div></div>
+          <div class="turn"><div class="who a">A1 · Ground3D-LMM</div><div style="font-size:13px">The <strong style="color:var(--accent3)">door</strong> is about <strong style="color:var(--accent3)">1.33 m</strong> away, moderately reachable.</div></div>
+          <div class="turn"><div class="who u">Q2 · User</div><div style="color:var(--text2);font-size:13px">"What part do I use to open it?"</div></div>
+          <div class="turn"><div class="who a">A2 · Ground3D-LMM</div><div style="font-size:13px">You would use the <strong style="color:var(--accent3)">door handle</strong>, positioned at a comfortable height.</div></div>
+        </div>
+        <div class="demo-col">
+          <div class="demo-tag">Grounding trace</div>
+          <div class="demo-mask">
+            <div class="mask-blob" style="border-radius:6%;width:38px;height:78px;left:42%;top:10%"></div>
+            <div class="mask-blob-2" style="width:10px;height:10px;left:54%;top:48%;border-radius:50%;border-color:var(--accent3);background:rgba(52,211,153,.2)"></div>
+            <div class="mask-label">turn_1 → door · turn_2 → handle</div>
+          </div>
+          <p class="demo-a" style="font-size:12px;color:var(--text2)">Object-level focus narrows to part-level on the follow-up; the model retains turn-1 context.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASKS GRID -->
+  <div class="sec" id="tasks">
+    <div class="sec-label">Coverage</div>
+    <div class="sec-title">Eight task types</div>
+    <p class="sec-sub">Eight grounded reasoning tasks at either object or part level, plus a multi-turn dialogue mode that carries context across turns.</p>
+    <div class="tasks-grid">
+      <div class="task-card"><div class="task-icon">📐</div><div class="task-name">3D metric estimation</div><div class="task-desc">Object/part dimensions in real-world units.</div></div>
+      <div class="task-card"><div class="task-icon">🎯</div><div class="task-name">3D grounded measurement</div><div class="task-desc">Mask + measurement for the same referent.</div></div>
+      <div class="task-card"><div class="task-icon">📏</div><div class="task-name">3D distance queries</div><div class="task-desc">Metric distance between two referred regions.</div></div>
+      <div class="task-card"><div class="task-icon">↔️</div><div class="task-name">3D depth relations</div><div class="task-desc">Closer/farther reasoning along the camera axis.</div></div>
+      <div class="task-card"><div class="task-icon">⚖️</div><div class="task-name">3D size comparison</div><div class="task-desc">Multi-object size ranking with metric support.</div></div>
+      <div class="task-card"><div class="task-icon">🧭</div><div class="task-name">Spatial relations</div><div class="task-desc">Left/right reasoning with explicit grounding.</div></div>
+      <div class="task-card"><div class="task-icon">🖐</div><div class="task-name">Functional grounding</div><div class="task-desc">Locate parts by affordance or action.</div></div>
+      <div class="task-card"><div class="task-icon">✅</div><div class="task-name">Existence verification</div><div class="task-desc">Confirm whether a referenced object or part is present in the scene.</div></div>
+    </div>
+  </div>
+
+  <!-- DATASET -->
+  <div class="sec" id="dataset">
+    <div class="sec-label">Dataset</div>
+    <div class="sec-title">Ground3D Dataset</div>
+    <p class="sec-sub">A ~2.5M-pair grounded spatial corpus built on ScanNet/ScanNet++ via an automatic pipeline, with point-level masks and metric annotations.</p>
+
+    <!-- Splits table -->
+    <div class="splits-card">
+      <div class="results-head"><h3>QA splits by source and level</h3><span>Train · Test · Total</span></div>
+      <table>
+        <thead>
+          <tr><th>Source</th><th>Level</th><th class="num">Train</th><th class="num">Test</th><th class="num">Total</th></tr>
+        </thead>
+        <tbody>
+          <tr class="src"><td colspan="2">ScanNet<span class="scenes">1,433 train · 80 test scenes</span></td><td class="num"></td><td class="num"></td><td class="num"></td></tr>
+          <tr><td></td><td class="indent">Object</td><td class="num val-gray">621,110</td><td class="num val-gray">34,650</td><td class="num val">655,760</td></tr>
+          <tr><td></td><td class="indent">Part</td><td class="num val-gray">871,612</td><td class="num val-gray">38,293</td><td class="num val">909,905</td></tr>
+          <tr><td></td><td class="indent">Multi-turn</td><td class="num val-gray">62,064</td><td class="num val-gray">—</td><td class="num val">62,064</td></tr>
+
+          <tr class="src"><td colspan="2">ScanNet++<span class="scenes">905 train · 48 test scenes</span></td><td class="num"></td><td class="num"></td><td class="num"></td></tr>
+          <tr><td></td><td class="indent">Object</td><td class="num val-gray">320,946</td><td class="num val-gray">18,450</td><td class="num val">339,396</td></tr>
+          <tr><td></td><td class="indent">Part</td><td class="num val-gray">485,387</td><td class="num val-gray">13,012</td><td class="num val">498,399</td></tr>
+          <tr><td></td><td class="indent">Multi-turn</td><td class="num val-gray">9,783</td><td class="num val-gray">—</td><td class="num val">9,783</td></tr>
+
+          <tr class="total"><td colspan="2">Total QA</td><td class="num val">2,370,902</td><td class="num val">104,405</td><td class="num val">2,475,307</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Task-type distribution -->
+    <div class="dist-card">
+      <div class="dist-title">Task-type distribution</div>
+      <div class="dist-hint">hover any segment to see its percentage</div>
+
+      <div class="dist-row">
+        <div class="dist-label">Ground3D-ScanNet</div>
+        <div class="dist-bar">
+          <div class="dist-seg" style="width:7.6%;background:#3b82f6" title="3D Functional Grounding · 7.6%">7.6%</div>
+          <div class="dist-seg" style="width:30.7%;background:#f59e0b" title="3D Metric Estimation · 30.7%">30.7%</div>
+          <div class="dist-seg" style="width:38.4%;background:#10b981" title="3D Grounded Measurement · 38.4%">38.4%</div>
+          <div class="dist-seg" style="width:5.3%;background:#ef4444" title="3D Depth Relations · 5.3%">5.3%</div>
+          <div class="dist-seg" style="width:4.7%;background:#8b5cf6" title="Existence Verification · 4.7%">4.7%</div>
+          <div class="dist-seg" style="width:5.2%;background:#a16207" title="3D Size Comparison · 5.2%">5.2%</div>
+          <div class="dist-seg" style="width:5.7%;background:#ec4899" title="3D Distance Queries · 5.7%">5.7%</div>
+          <div class="dist-seg" style="width:2.3%;background:#64748b" title="Spatial Relations · 2.3%"></div>
+        </div>
+      </div>
+
+      <div class="dist-row">
+        <div class="dist-label">Ground3D-ScanNet++</div>
+        <div class="dist-bar">
+          <div class="dist-seg" style="width:7.8%;background:#3b82f6" title="3D Functional Grounding · 7.8%">7.8%</div>
+          <div class="dist-seg" style="width:31.2%;background:#f59e0b" title="3D Metric Estimation · 31.2%">31.2%</div>
+          <div class="dist-seg" style="width:39.1%;background:#10b981" title="3D Grounded Measurement · 39.1%">39.1%</div>
+          <div class="dist-seg" style="width:5.5%;background:#ef4444" title="3D Depth Relations · 5.5%">5.5%</div>
+          <div class="dist-seg" style="width:4.8%;background:#8b5cf6" title="Existence Verification · 4.8%">4.8%</div>
+          <div class="dist-seg" style="width:4.9%;background:#a16207" title="3D Size Comparison · 4.9%">4.9%</div>
+          <div class="dist-seg" style="width:5.0%;background:#ec4899" title="3D Distance Queries · 5.0%">5.0%</div>
+          <div class="dist-seg" style="width:1.7%;background:#64748b" title="Spatial Relations · 1.7%"></div>
+        </div>
+      </div>
+
+      <div class="dist-legend">
+        <div class="dist-leg-item"><span class="dist-leg-sw" style="background:#3b82f6"></span>3D Functional Grounding</div>
+        <div class="dist-leg-item"><span class="dist-leg-sw" style="background:#f59e0b"></span>3D Metric Estimation</div>
+        <div class="dist-leg-item"><span class="dist-leg-sw" style="background:#10b981"></span>3D Grounded Measurement</div>
+        <div class="dist-leg-item"><span class="dist-leg-sw" style="background:#ef4444"></span>3D Depth Relations</div>
+        <div class="dist-leg-item"><span class="dist-leg-sw" style="background:#8b5cf6"></span>Existence Verification</div>
+        <div class="dist-leg-item"><span class="dist-leg-sw" style="background:#a16207"></span>3D Size Comparison</div>
+        <div class="dist-leg-item"><span class="dist-leg-sw" style="background:#ec4899"></span>3D Distance Queries</div>
+        <div class="dist-leg-item"><span class="dist-leg-sw" style="background:#64748b"></span>Spatial Relations</div>
+      </div>
+    </div>
+
+    <h3 class="pipe-heading">Data annotation pipeline</h3>
+    <figure class="pipe-figure">
+      <img src="pipeline.png" alt="Ground3D Dataset annotation pipeline: object detection → segmentation → mask refinement → 3D back-projection → metric extraction → scene context generation, followed by Qwen3-VL question generation, VLM-based filtering, and manual verification on the test subset.">
+    </figure>
+  </div>
+
+  <!-- METHOD / PIPELINE -->
+  <div class="sec" id="method">
+    <div class="sec-label">Method</div>
+    <div class="sec-title">Model pipeline</div>
+    <p class="sec-sub">A four-stage architecture interleaves point, image, and language tokens inside the LMM and emits a binary point mask whenever a special grounding token (&lt;SEG&gt;) is generated. End-to-end trainable with a multi-task objective covering segmentation and language modeling.</p>
+
+    <figure class="pipe-figure">
+      <img src="method.png" alt="Ground3D-LMM model pipeline: point cloud is encoded by a Point Encoder into point tokens; text and image inputs are tokenized; all tokens are reasoned over by the Point LMM (LLM core); seg-query tokens drive a Segmentation Head that emits object- and part-level masks alongside the output text.">
+    </figure>
+
+  </div>
+
+  <!-- RESULTS -->
+  <div class="sec" id="results">
+    <div class="sec-label">Benchmark</div>
+    <div class="sec-title">State-of-the-art results</div>
+    <p class="sec-sub">Higher is better on all metrics. Our model rows are highlighted; (3D + 2D) additionally consumes an RGB image at inference.</p>
+
+    <div class="results-card">
+      <div class="results-head"><h3>ScanRefer · grounding results</h3><span>Acc@0.25 · Acc@0.50 · mIoU</span></div>
+      <table>
+        <thead><tr><th>Method</th><th>Modality</th><th class="num">Acc@0.25</th><th class="num">Acc@0.50</th><th class="num">mIoU</th></tr></thead>
+        <tbody>
+          <tr><td>ScanRefer</td><td>3D</td><td class="num val-gray">10.51</td><td class="num val-gray">6.20</td><td class="num val-gray">—</td></tr>
+          <tr><td>EDA</td><td>3D</td><td class="num val-gray">26.50</td><td class="num val-gray">21.20</td><td class="num val-gray">—</td></tr>
+          <tr><td>UniSeg3D</td><td>3D</td><td class="num val-gray">—</td><td class="num val-gray">—</td><td class="num val-gray">29.10</td></tr>
+          <tr><td>IntentNet</td><td>3D</td><td class="num val-gray">28.12</td><td class="num val-gray">22.63</td><td class="num val-gray">18.92</td></tr>
+          <tr><td>MLLM-For3D + VideoLISA</td><td>3D+2D</td><td class="num val-gray">33.12</td><td class="num val-gray">31.21</td><td class="num val-gray">30.45</td></tr>
+          <tr class="ours"><td>Ground3D-LMM <span class="badge-ours">ours</span></td><td>3D</td><td class="num val">55.73</td><td class="num val">32.71</td><td class="num val">38.72</td></tr>
+          <tr class="ours"><td>Ground3D-LMM <span class="badge-ours">ours</span></td><td>3D+2D</td><td class="num val">59.98</td><td class="num val">36.37</td><td class="num val">41.30</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="results-card">
+      <div class="results-head"><h3>Reason3D · grounding results</h3><span>Acc@0.25 · Acc@0.50 · mIoU</span></div>
+      <table>
+        <thead><tr><th>Method</th><th>Modality</th><th class="num">Acc@0.25</th><th class="num">Acc@0.50</th><th class="num">mIoU</th></tr></thead>
+        <tbody>
+          <tr><td>Reason3D</td><td>3D</td><td class="num val-gray">43.21</td><td class="num val-gray">32.10</td><td class="num val-gray">31.20</td></tr>
+          <tr><td>MLLM-For3D + VideoLISA</td><td>3D+2D</td><td class="num val-gray">48.45</td><td class="num val-gray">41.02</td><td class="num val-gray">39.82</td></tr>
+          <tr class="ours"><td>Ground3D-LMM <span class="badge-ours">ours</span></td><td>3D</td><td class="num val">50.32</td><td class="num val">37.01</td><td class="num val">36.35</td></tr>
+          <tr class="ours"><td>Ground3D-LMM <span class="badge-ours">ours</span></td><td>3D+2D</td><td class="num val">57.79</td><td class="num val">41.23</td><td class="num val">41.29</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="sec-sub" style="margin-top:32px;margin-bottom:14px">Out-of-distribution generalization on CA-VQA. Ground3D-LMM outperforms GPT-4o, SpatialRGPT-8B, and MM1.5 across all sub-metrics.</p>
+    <div class="results-card">
+      <div class="results-head"><h3>CA-VQA · out-of-distribution generalization</h3><span>Binary · Count · Gnd · Multi-c · Distances · Size · Avg</span></div>
+      <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th class="num">Binary</th>
+            <th class="num">Count</th>
+            <th class="num">2D Gnd</th>
+            <th class="num">3D Gnd</th>
+            <th class="num">Multi-c</th>
+            <th class="num">Ego-Dist</th>
+            <th class="num">Obj-Dist</th>
+            <th class="num">Obj-Size</th>
+            <th class="num">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>GPT-4o</td><td class="num val-gray">44.2</td><td class="num val-gray">69.0</td><td class="num val-gray">0.0</td><td class="num val-gray">0.0</td><td class="num val-gray">36.6</td><td class="num val-gray">11.7</td><td class="num val-gray">10.0</td><td class="num val-gray">11.0</td><td class="num val-gray">22.8</td></tr>
+          <tr><td>SpatialRGPT-8B</td><td class="num val-gray">53.6</td><td class="num val-gray">68.8</td><td class="num val-gray">5.5</td><td class="num val-gray">0.0</td><td class="num val-gray">37.2</td><td class="num val-gray">10.5</td><td class="num val-gray">8.7</td><td class="num val-gray">7.0</td><td class="num val-gray">23.9</td></tr>
+          <tr><td>MM1.5-3B</td><td class="num val-gray">59.1</td><td class="num val-gray">9.1</td><td class="num val-gray">32.6</td><td class="num val-gray">0.0</td><td class="num val-gray">38.6</td><td class="num val-gray">0.6</td><td class="num val-gray">2.2</td><td class="num val-gray">3.4</td><td class="num val-gray">18.2</td></tr>
+          <tr class="ours"><td>Ground3D-LMM <span class="badge-ours">ours</span></td><td class="num val">81.2</td><td class="num val">82.8</td><td class="num val">41.2</td><td class="num val">11.5</td><td class="num val">85.7</td><td class="num val">37.8</td><td class="num val">14.2</td><td class="num val">30.0</td><td class="num val">48.1</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CITE -->
+  <div class="sec" id="cite">
+    <div class="sec-label">Citation</div>
+    <div class="sec-title">BibTeX</div>
+    <p class="sec-sub">If you find this work useful, please consider citing it.</p>
+    <div class="cite-box">
+      <div class="cite-label"><span>BibTeX</span><button class="cite-copy" id="copyBtn">Copy</button></div>
+<pre class="cite-code" id="bibtex">@inproceedings{ground3dlmm2026,
+  title     = {Ground3D-LMM: Fine-Grained 3D Point Grounding
+               and Spatial Reasoning with LMM},
+  author    = {Anonymous},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  year      = {2026},
+  note      = {Submission \#5032}
+}</pre>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-row">
+      <p class="ftitle"><b>Ground3D-LMM</b> · Fine-Grained 3D Point Grounding and Spatial Reasoning with LMM</p>
+      <div class="footer-links">
+        <a href="#demo">Demo</a>
+        <a href="#tasks">Coverage</a>
+        <a href="#dataset">Dataset</a>
+        <a href="#method">Method</a>
+        <a href="#results">Benchmark</a>
+        <a href="#cite">Citation</a>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // Tab switching
+  (function(){
+    var tabs = document.querySelectorAll('#tabs .tab');
+    var panels = document.querySelectorAll('.demo-card.panel');
+    tabs.forEach(function(t){
+      t.addEventListener('click', function(){
+        var id = t.getAttribute('data-tab');
+        tabs.forEach(function(x){ x.classList.remove('active'); });
+        panels.forEach(function(p){ p.style.display = 'none'; });
+        t.classList.add('active');
+        var el = document.getElementById(id);
+        if (el) el.style.display = 'block';
+      });
+    });
+  })();
+
+  // Sticky navbar hide on scroll down, show on scroll up
+  (function(){
+    var nav = document.getElementById('navWrap');
+    var lastY = window.scrollY;
+    window.addEventListener('scroll', function(){
+      var y = window.scrollY;
+      if (y > lastY && y > 120) nav.classList.add('hidden');
+      else nav.classList.remove('hidden');
+      lastY = y;
+    }, { passive: true });
+  })();
+
+  // Mobile nav toggle
+  (function(){
+    var btn = document.getElementById('navToggle');
+    var links = document.getElementById('navLinks');
+    btn.addEventListener('click', function(){ links.classList.toggle('open'); });
+    links.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click', function(){ links.classList.remove('open'); });
+    });
+  })();
+
+  // Distribution-bar hover tooltips (read from title attr, render as styled span)
+  // Also clears the inline percentage text so only tooltips remain visible.
+  (function(){
+    document.querySelectorAll('.dist-seg').forEach(function(seg){
+      var label = seg.getAttribute('title');
+      seg.textContent = ''; // remove inline number
+      if (!label) return;
+      seg.removeAttribute('title'); // suppress native tooltip
+      var tip = document.createElement('span');
+      tip.className = 'seg-tip';
+      tip.textContent = label;
+      seg.appendChild(tip);
+    });
+  })();
+
+  // Theme toggle (light default, dark optional, persisted)
+  (function(){
+    var root = document.documentElement;
+    var btn = document.getElementById('themeToggle');
+    var saved = null;
+    try { saved = localStorage.getItem('theme'); } catch(e){}
+    if (saved === 'dark') root.setAttribute('data-theme', 'dark');
+    btn.addEventListener('click', function(){
+      var isDark = root.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        root.removeAttribute('data-theme');
+        try { localStorage.setItem('theme', 'light'); } catch(e){}
+      } else {
+        root.setAttribute('data-theme', 'dark');
+        try { localStorage.setItem('theme', 'dark'); } catch(e){}
+      }
+    });
+  })();
+
+  // Copy BibTeX
+  (function(){
+    var btn = document.getElementById('copyBtn');
+    var pre = document.getElementById('bibtex');
+    btn.addEventListener('click', async function(){
+      try {
+        await navigator.clipboard.writeText(pre.innerText);
+        btn.textContent = 'Copied ✓';
+        btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      } catch (e) {
+        var r = document.createRange(); r.selectNode(pre);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(r);
+      }
+    });
+  })();
+</script>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+  import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+
+  function initPlyViewer(container) {
+    const plyUrl = container.dataset.ply;
+    const loaderEl = container.querySelector('.ply-loader');
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 200);
+    camera.up.set(0, 0, 1); // ScanNet uses Z-up
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.screenSpacePanning = true;
+    controls.enableZoom = true;
+    controls.zoomSpeed = 0.4;
+    controls.minDistance = 1.5;
+    controls.maxDistance = 12;
+
+    // Prevent page scroll when wheel-zooming over the canvas
+    renderer.domElement.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    dir.position.set(2, 3, 5);
+    scene.add(dir);
+
+    function resize() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const loader = new PLYLoader();
+    loader.load(
+      plyUrl,
+      (geometry) => {
+        geometry.computeVertexNormals();
+        geometry.computeBoundingBox();
+        const bb = geometry.boundingBox;
+        const center = new THREE.Vector3();
+        bb.getCenter(center);
+        geometry.translate(-center.x, -center.y, -center.z);
+        const size = new THREE.Vector3();
+        bb.getSize(size);
+        const radius = Math.max(size.x, size.y, size.z);
+
+        const hasColors = geometry.hasAttribute('color');
+        const material = new THREE.MeshLambertMaterial({
+          vertexColors: hasColors,
+          color: hasColors ? 0xffffff : 0x9ca3af,
+          side: THREE.DoubleSide,
+          flatShading: false,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        camera.position.set(radius * 1.1, -radius * 1.1, radius * 0.9);
+        camera.lookAt(0, 0, 0);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        if (loaderEl) loaderEl.style.display = 'none';
+      },
+      (xhr) => {
+        if (loaderEl && xhr.total) {
+          const pct = Math.round((xhr.loaded / xhr.total) * 100);
+          loaderEl.textContent = `loading scene… ${pct}%`;
+        }
+      },
+      (err) => {
+        if (loaderEl) loaderEl.textContent = 'failed to load scene';
+        console.error(err);
+      }
+    );
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  }
+
+  document.querySelectorAll('.ply-viewer[data-ply]').forEach(initPlyViewer);
+</script>
+
+</body>
+</html>
