@@ -176,7 +176,8 @@
   .ds-stat .lbl{color:var(--text2);font-weight:500}
   .ds-stat .v{color:var(--accent);font-family:var(--mono);font-weight:700}
   .pipe-svg{display:block;width:100%;height:auto}
-  .pipe-heading{font-size:20px;font-weight:700;color:var(--text);margin-top:32px;margin-bottom:14px;letter-spacing:-.2px}
+  .pipe-heading{font-size:20px;font-weight:700;color:var(--text);margin-top:32px;margin-bottom:6px;letter-spacing:-.2px}
+  .pipe-subtext{font-size:15px;font-weight:500;color:var(--text2);line-height:1.6;margin-bottom:14px;max-width:780px}
   .pipe-figure{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:18px}
   .pipe-figure img{display:block;width:100%;height:auto;border-radius:6px}
   .pipe-caption{font-size:13px;font-weight:500;color:var(--text2);margin-top:12px;text-align:center;font-family:var(--mono)}
@@ -261,6 +262,7 @@
       <a href="#dataset">Dataset</a>
       <a href="#method">Method</a>
       <a href="#results">Benchmark</a>
+      <a href="#qualitative">Qualitative</a>
       <a href="#cite">Citation</a>
       <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
         <span class="icon-moon">☾</span><span class="icon-sun">☀</span>
@@ -306,7 +308,7 @@
     <div class="stat"><div class="stat-num">~2.5M</div><div class="stat-lbl">QA pairs</div></div>
     <div class="stat"><div class="stat-num">2,500+</div><div class="stat-lbl">scenes</div></div>
     <div class="stat"><div class="stat-num">8</div><div class="stat-lbl">task types</div></div>
-    <div class="stat"><div class="stat-num">+22.6</div><div class="stat-lbl">Acc@0.25 vs prior SOTA</div></div>
+    <div class="stat"><div class="stat-num">59.98</div><div class="stat-lbl">Acc@0.25 on ScanRefer</div></div>
   </div>
 
   <!-- DEMO -->
@@ -316,61 +318,61 @@
     <p class="sec-sub">Natural-language queries about a 3D scene, grounded to a point-level mask and answered in real-world units.</p>
 
     <div class="demo-tabs" id="tabs">
-      <div class="tab active" data-tab="t1">Metric estimation</div>
-      <div class="tab" data-tab="t2">Grounded measurement</div>
-      <div class="tab" data-tab="t3">Functional grounding</div>
-      <div class="tab" data-tab="t4">Distance query</div>
-      <div class="tab" data-tab="t5">Size comparison</div>
-      <div class="tab" data-tab="t6">Multi-turn</div>
+      <div class="tab active" data-tab="t2">3D Grounded Measurement</div>
+      <div class="tab" data-tab="t3">3D Functional Grounding · Part</div>
+      <div class="tab" data-tab="t9">3D Functional Grounding · Object</div>
+      <div class="tab" data-tab="t4">3D Distance Queries</div>
+      <div class="tab" data-tab="t5">3D Size Comparison</div>
+      <div class="tab" data-tab="t8">Spatial Relations</div>
+      <div class="tab" data-tab="t10">3D Depth Relations</div>
+      <div class="tab" data-tab="t7">Existence Verification</div>
+      <div class="tab" data-tab="t1">3D Metric Estimation</div>
     </div>
 
     <!-- t1 -->
-    <div class="demo-card panel" id="t1" style="display:block">
+    <div class="demo-card panel" id="t1" style="display:none">
       <div class="demo-header">
         <div class="demo-dot" style="background:#ef4444"></div>
         <div class="demo-dot" style="background:#f59e0b"></div>
         <div class="demo-dot" style="background:#22c55e"></div>
-        <div class="demo-label">3D Metric Estimation · ScanNet scene0673_04</div>
+        <div class="demo-label">3D Metric Estimation · ScanNet scene0423</div>
       </div>
-      <div class="ply-viewer" id="plyViewer1" data-ply="scene0673_04_vh_clean_2.ply">
+      <div class="ply-viewer" id="plyViewer1" data-ply="3d_examples/scene0423_redflowers_RGB_pred_overlay.ply">
         <div class="ply-loader" id="plyLoader1">loading scene…</div>
         <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
       <div class="demo-body">
         <div class="demo-col">
           <div class="demo-tag">User query</div>
-          <p class="demo-q">"Can you tell me the length of the bathtub next to the green mat?"</p>
+          <p class="demo-q">"What are the overall dimensions of the plant arrangement red flowers?"</p>
         </div>
         <div class="demo-col">
           <div class="demo-tag">Model response</div>
-          <p class="demo-a">The length of the <strong>bathtub</strong> is <strong>1.33 m</strong>.</p>
+          <p class="demo-a">The <strong style="color:#ef4444">plant arrangement red flowers</strong> measures <strong style="color:var(--text)">1.20 m × 0.48 m × 0.15 m</strong>.</p>
         </div>
       </div>
     </div>
 
     <!-- t2 -->
-    <div class="demo-card panel" id="t2" style="display:none">
+    <div class="demo-card panel" id="t2" style="display:block">
       <div class="demo-header">
         <div class="demo-dot" style="background:#ef4444"></div>
         <div class="demo-dot" style="background:#f59e0b"></div>
         <div class="demo-dot" style="background:#22c55e"></div>
-        <div class="demo-label">3D Grounded Measurement · ScanNet scene_0231_00</div>
+        <div class="demo-label">Grounded Dimension Reasoning · ScanNet scene0427</div>
+      </div>
+      <div class="ply-viewer" id="plyViewer2" data-ply="3d_examples/scene0427_chairbackrest_RGB_pred_overlay.ply">
+        <div class="ply-loader" id="plyLoader2">loading scene…</div>
+        <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
       <div class="demo-body">
         <div class="demo-col">
           <div class="demo-tag">User query</div>
-          <p class="demo-q">"Segment the wooden door near the wall and report its overall size."</p>
+          <p class="demo-q">"Find the chair backrest and report its length."</p>
         </div>
         <div class="demo-col">
           <div class="demo-tag">Model response</div>
-          <div class="demo-mask">
-            <div class="mask-blob" style="border-radius:6%;width:38px;height:78px;left:42%;top:10%"></div>
-            <div class="mask-dot" style="left:48%;top:30%"></div>
-            <div class="mask-dot" style="left:50%;top:55%"></div>
-            <div class="mask-dot" style="left:46%;top:75%"></div>
-            <div class="mask-label">point mask · door</div>
-          </div>
-          <p class="demo-a">The <strong>door</strong> has dimensions <strong>1.33 m × 0.87 m × 0.03 m</strong>.</p>
+          <p class="demo-a">The length of the <strong style="color:#ef4444">chair backrest</strong> is <strong style="color:var(--text)">0.64 m</strong>.</p>
         </div>
       </div>
     </div>
@@ -381,23 +383,44 @@
         <div class="demo-dot" style="background:#ef4444"></div>
         <div class="demo-dot" style="background:#f59e0b"></div>
         <div class="demo-dot" style="background:#22c55e"></div>
-        <div class="demo-label">Functional Grounding · ScanNet bathroom</div>
+        <div class="demo-label">Functional Part Grounding · ScanNet scene0426</div>
+      </div>
+      <div class="ply-viewer" id="plyViewer3" data-ply="3d_examples/scene0426_doorknob_RGB_pred_overlay.ply">
+        <div class="ply-loader" id="plyLoader3">loading scene…</div>
+        <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
       <div class="demo-body">
         <div class="demo-col">
           <div class="demo-tag">User query</div>
-          <p class="demo-q">"Where should one place their feet after stepping out of the tub?"</p>
+          <p class="demo-q">"Which part should be turned to open the door?"</p>
         </div>
         <div class="demo-col">
           <div class="demo-tag">Model response</div>
-          <div class="demo-mask">
-            <div class="mask-blob" style="border-radius:14%;width:78px;height:34px;left:24%;top:46%"></div>
-            <div class="mask-dot" style="left:32%;top:55%"></div>
-            <div class="mask-dot" style="left:48%;top:60%"></div>
-            <div class="mask-dot" style="left:60%;top:54%"></div>
-            <div class="mask-label">affordance · mat</div>
-          </div>
-          <p class="demo-a">They can put their feet on the <strong>bathroom mat</strong> near the bathtub.</p>
+          <p class="demo-a">Turn the <strong style="color:#ef4444">door handle</strong> to unlock and swing the door open.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- t9 -->
+    <div class="demo-card panel" id="t9" style="display:none">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <div class="demo-label">Functional Object Grounding · ScanNet scene0217</div>
+      </div>
+      <div class="ply-viewer" id="plyViewer9" data-ply="3d_examples/scene0217_dresser_RGB_pred_overlay.ply">
+        <div class="ply-loader" id="plyLoader9">loading scene…</div>
+        <div class="ply-hint">drag · scroll · right-click pan</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-col">
+          <div class="demo-tag">User query</div>
+          <p class="demo-q">"What piece of furniture in the scene is typically used to store clothing and is positioned near the bed?"</p>
+        </div>
+        <div class="demo-col">
+          <div class="demo-tag">Model response</div>
+          <p class="demo-a">You can use <strong style="color:#ef4444">dresser</strong> for storing clothes and is located beside the bed.</p>
         </div>
       </div>
     </div>
@@ -408,21 +431,20 @@
         <div class="demo-dot" style="background:#ef4444"></div>
         <div class="demo-dot" style="background:#f59e0b"></div>
         <div class="demo-dot" style="background:#22c55e"></div>
-        <div class="demo-label">3D Distance Query · entry hallway</div>
+        <div class="demo-label">3D Distance Estimation · ScanNet scene0578</div>
+      </div>
+      <div class="ply-viewer" id="plyViewer4" data-ply="3d_examples/scene0578_tablebackpack_RGB_pred_overlay.ply">
+        <div class="ply-loader" id="plyLoader4">loading scene…</div>
+        <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
       <div class="demo-body">
         <div class="demo-col">
           <div class="demo-tag">User query</div>
-          <p class="demo-q">"What's the distance between the light switch and the door lock?"</p>
+          <p class="demo-q">"Report the separation of the table and the backpack in the scene."</p>
         </div>
         <div class="demo-col">
           <div class="demo-tag">Model response</div>
-          <div class="demo-mask">
-            <div class="mask-blob" style="width:18px;height:18px;left:28%;top:38%;border-radius:50%"></div>
-            <div class="mask-blob-2" style="width:18px;height:18px;left:64%;top:38%;border-radius:50%"></div>
-            <div class="mask-label">d = 0.20 m</div>
-          </div>
-          <p class="demo-a">The <strong>light switch</strong> and the <strong>door lock</strong> are <strong>0.20 m</strong> apart.</p>
+          <p class="demo-a">The <strong style="color:#ef4444">table</strong> and <strong style="color:#22c55e">backpack</strong> are <strong style="color:var(--text)">0.21 m</strong> apart.</p>
         </div>
       </div>
     </div>
@@ -433,49 +455,92 @@
         <div class="demo-dot" style="background:#ef4444"></div>
         <div class="demo-dot" style="background:#f59e0b"></div>
         <div class="demo-dot" style="background:#22c55e"></div>
-        <div class="demo-label">3D Size Comparison · ScanNet scene_0044_00</div>
+        <div class="demo-label">3D Size Comparison · ScanNet scene0427</div>
+      </div>
+      <div class="ply-viewer" id="plyViewer5" data-ply="3d_examples/scene0427_scaleQ2_RGB_pred_overlay.ply">
+        <div class="ply-loader" id="plyLoader5">loading scene…</div>
+        <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
       <div class="demo-body">
         <div class="demo-col">
           <div class="demo-tag">User query</div>
-          <p class="demo-q">"Which is larger, the door or the bathtub?"</p>
+          <p class="demo-q">"Which one is larger, tabletop or chair backrest?"</p>
         </div>
         <div class="demo-col">
           <div class="demo-tag">Model response</div>
-          <div class="demo-mask">
-            <div class="mask-blob" style="width:80px;height:50px;left:46%;top:30%"></div>
-            <div class="mask-blob-2" style="border-radius:6%;width:24px;height:60px;left:14%;top:22%"></div>
-            <div class="mask-label">V(tub) &gt; V(door)</div>
-          </div>
-          <p class="demo-a">The <strong>bathtub</strong> (1.33 m × 0.99 m × 0.58 m) is larger than the <strong>door</strong> (1.33 m × 0.87 m × 0.03 m).</p>
+          <p class="demo-a">The size of <strong style="color:#ef4444">tabletop</strong> is 0.84 m × 0.71 m × 0.25 m and the size of <strong style="color:#22c55e">chair backrest</strong> is 0.69 m × 0.40 m × 0.22 m, so <strong style="color:#ef4444">tabletop</strong> is larger.</p>
         </div>
       </div>
     </div>
 
-    <!-- t6 -->
-    <div class="demo-card panel" id="t6" style="display:none">
+    <!-- t8 -->
+    <div class="demo-card panel" id="t8" style="display:none">
       <div class="demo-header">
         <div class="demo-dot" style="background:#ef4444"></div>
         <div class="demo-dot" style="background:#f59e0b"></div>
         <div class="demo-dot" style="background:#22c55e"></div>
-        <div class="demo-label">Multi-turn Conversation · context-aware grounding</div>
+        <div class="demo-label">Spatial Relations · ScanNet scene0063</div>
+      </div>
+      <div class="ply-viewer" id="plyViewer8" data-ply="3d_examples/scene0063_relpos_RGB_pred_overlay.ply">
+        <div class="ply-loader" id="plyLoader8">loading scene…</div>
+        <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
       <div class="demo-body">
         <div class="demo-col">
-          <div class="demo-tag">Dialogue</div>
-          <div class="turn"><div class="who u">Q1 · User</div><div style="color:var(--text2);font-size:13px">"How easy would it be to get out using the door?"</div></div>
-          <div class="turn"><div class="who a">A1 · Ground3D-LMM</div><div style="font-size:13px">The <strong style="color:var(--accent3)">door</strong> is about <strong style="color:var(--accent3)">1.33 m</strong> away, moderately reachable.</div></div>
-          <div class="turn"><div class="who u">Q2 · User</div><div style="color:var(--text2);font-size:13px">"What part do I use to open it?"</div></div>
-          <div class="turn"><div class="who a">A2 · Ground3D-LMM</div><div style="font-size:13px">You would use the <strong style="color:var(--accent3)">door handle</strong>, positioned at a comfortable height.</div></div>
+          <div class="demo-tag">User query</div>
+          <p class="demo-q">"When the viewer looks at the scene, is the tabletop seen to the left or to the right of the chair seat?"</p>
         </div>
         <div class="demo-col">
-          <div class="demo-tag">Grounding trace</div>
-          <div class="demo-mask">
-            <div class="mask-blob" style="border-radius:6%;width:38px;height:78px;left:42%;top:10%"></div>
-            <div class="mask-blob-2" style="width:10px;height:10px;left:54%;top:48%;border-radius:50%;border-color:var(--accent3);background:rgba(52,211,153,.2)"></div>
-            <div class="mask-label">turn_1 → door · turn_2 → handle</div>
-          </div>
-          <p class="demo-a" style="font-size:12px;color:var(--text2)">Object-level focus narrows to part-level on the follow-up; the model retains turn-1 context.</p>
+          <div class="demo-tag">Model response</div>
+          <p class="demo-a">From this perspective, the <strong style="color:#ef4444">tabletop</strong> is located on the right side of the <strong style="color:#22c55e">chair seat</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- t10 -->
+    <div class="demo-card panel" id="t10" style="display:none">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <div class="demo-label">Relative Depth · ScanNet scene0193</div>
+      </div>
+      <div class="ply-viewer" id="plyViewer10" data-ply="3d_examples/scene0193_bedmh_RGB_pred_overlay.ply">
+        <div class="ply-loader" id="plyLoader10">loading scene…</div>
+        <div class="ply-hint">drag · scroll · right-click pan</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-col">
+          <div class="demo-tag">User query</div>
+          <p class="demo-q">"Would you say the bed mattress is closer or farther than the bed headboard from the camera?"</p>
+        </div>
+        <div class="demo-col">
+          <div class="demo-tag">Model response</div>
+          <p class="demo-a">The <strong style="color:#ef4444">bed mattress</strong> is closer than <strong style="color:#22c55e">bed headboard</strong> from the camera.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- t7 -->
+    <div class="demo-card panel" id="t7" style="display:none">
+      <div class="demo-header">
+        <div class="demo-dot" style="background:#ef4444"></div>
+        <div class="demo-dot" style="background:#f59e0b"></div>
+        <div class="demo-dot" style="background:#22c55e"></div>
+        <div class="demo-label">Existence Verification · ScanNet scene0164_02</div>
+      </div>
+      <div class="ply-viewer" id="plyViewer7" data-ply="3d_examples/scene0164_02_frame_308_refrigerator_existence_RGB.ply">
+        <div class="ply-loader" id="plyLoader7">loading scene…</div>
+        <div class="ply-hint">drag · scroll · right-click pan</div>
+      </div>
+      <div class="demo-body">
+        <div class="demo-col">
+          <div class="demo-tag">User query</div>
+          <p class="demo-q">"Does the scene show a refrigerator?"</p>
+        </div>
+        <div class="demo-col">
+          <div class="demo-tag">Model response</div>
+          <p class="demo-a">No, this <strong style="color:var(--text)">refrigerator</strong> does not exist in the scene.</p>
         </div>
       </div>
     </div>
@@ -573,6 +638,7 @@
     </div>
 
     <h3 class="pipe-heading">Data annotation pipeline</h3>
+    <p class="pipe-subtext">An automatic pipeline that turns RGB-D frames into grounded, metric question-answer pairs.</p>
     <figure class="pipe-figure">
       <img src="pipeline.png" alt="Ground3D Dataset annotation pipeline: object detection → segmentation → mask refinement → 3D back-projection → metric extraction → scene context generation, followed by Qwen3-VL question generation, VLM-based filtering, and manual verification on the test subset.">
     </figure>
@@ -655,6 +721,31 @@
     </div>
   </div>
 
+  <!-- QUALITATIVE -->
+  <div class="sec" id="qualitative">
+    <div class="sec-label">Qualitative</div>
+    <div class="sec-title">Qualitative results</div>
+    <p class="sec-sub">Side-by-side ground truth and prediction across object-level, part-level, and multi-turn settings, with grounded point masks and metric answers.</p>
+
+    <h3 class="pipe-heading">Object-level tasks</h3>
+    <p class="pipe-subtext">Predictions across distance, functional grounding, dimension reasoning, depth, position, and size comparison.</p>
+    <figure class="pipe-figure">
+      <img src="qual_object.png" alt="Object-level qualitative results: GT vs prediction for distance estimation, functional object grounding, grounded dimension reasoning, relative depth, relative position, scale estimation, and scale comparison.">
+    </figure>
+
+    <h3 class="pipe-heading">Part-level tasks</h3>
+    <p class="pipe-subtext">The same task suite evaluated at part granularity.</p>
+    <figure class="pipe-figure">
+      <img src="qual_part.png" alt="Part-level qualitative results: GT vs prediction across the task suite at part granularity.">
+    </figure>
+
+    <h3 class="pipe-heading">Multi-turn conversation</h3>
+    <p class="pipe-subtext">Context-carrying dialogues that narrow from object-level to part-level focus across turns.</p>
+    <figure class="pipe-figure">
+      <img src="qual_multiturn.png" alt="Multi-turn conversation examples: grounded dialogues that maintain context and shift focus from object to part level across turns.">
+    </figure>
+  </div>
+
   <!-- CITE -->
   <div class="sec" id="cite">
     <div class="sec-label">Citation</div>
@@ -682,6 +773,7 @@
         <a href="#dataset">Dataset</a>
         <a href="#method">Method</a>
         <a href="#results">Benchmark</a>
+        <a href="#qualitative">Qualitative</a>
         <a href="#cite">Citation</a>
       </div>
     </div>
@@ -811,33 +903,45 @@
     controls.dampingFactor = 0.08;
     controls.screenSpacePanning = true;
     controls.enableZoom = true;
-    controls.zoomSpeed = 0.4;
-    controls.minDistance = 1.5;
-    controls.maxDistance = 12;
+    controls.zoomSpeed = 0.75;
 
     // Prevent page scroll when wheel-zooming over the canvas
     renderer.domElement.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.5);
     dir.position.set(2, 3, 5);
     scene.add(dir);
 
     function resize() {
       const w = container.clientWidth;
       const h = container.clientHeight;
+      if (w === 0 || h === 0) return; // tab hidden — skip until visible
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     }
     resize();
+    // ResizeObserver also fires when a hidden tab becomes visible (0 -> real size)
+    new ResizeObserver(resize).observe(container);
     window.addEventListener('resize', resize);
+
+    // Brighten vertex colors (PLYLoader normalizes uchar RGB to 0..1)
+    function brightenColors(geometry, factor) {
+      const col = geometry.getAttribute('color');
+      if (!col) return;
+      for (let i = 0; i < col.count; i++) {
+        col.setX(i, Math.min(1, col.getX(i) * factor));
+        col.setY(i, Math.min(1, col.getY(i) * factor));
+        col.setZ(i, Math.min(1, col.getZ(i) * factor));
+      }
+      col.needsUpdate = true;
+    }
 
     const loader = new PLYLoader();
     loader.load(
       plyUrl,
       (geometry) => {
-        geometry.computeVertexNormals();
         geometry.computeBoundingBox();
         const bb = geometry.boundingBox;
         const center = new THREE.Vector3();
@@ -848,16 +952,32 @@
         const radius = Math.max(size.x, size.y, size.z);
 
         const hasColors = geometry.hasAttribute('color');
-        const material = new THREE.MeshLambertMaterial({
-          vertexColors: hasColors,
-          color: hasColors ? 0xffffff : 0x9ca3af,
-          side: THREE.DoubleSide,
-          flatShading: false,
-        });
-        const mesh = new THREE.Mesh(geometry, material);
-        scene.add(mesh);
+        const hasFaces = geometry.index !== null && geometry.index.count > 0;
+        if (hasColors) brightenColors(geometry, 1.45);
 
-        camera.position.set(radius * 1.1, -radius * 1.1, radius * 0.9);
+        let obj;
+        if (hasFaces) {
+          // Mesh PLY — unlit full-bright vertex colors
+          geometry.computeVertexNormals();
+          obj = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+            vertexColors: hasColors,
+            color: hasColors ? 0xffffff : 0x9ca3af,
+            side: THREE.DoubleSide,
+          }));
+        } else {
+          // Point-cloud PLY — render as larger points
+          obj = new THREE.Points(geometry, new THREE.PointsMaterial({
+            vertexColors: hasColors,
+            color: hasColors ? 0xffffff : 0x9ca3af,
+            size: radius * 0.012,
+            sizeAttenuation: true,
+          }));
+        }
+        scene.add(obj);
+
+        controls.minDistance = radius * 0.2;
+        controls.maxDistance = radius * 2.0;
+        camera.position.set(radius * 0.62, -radius * 0.62, radius * 0.5);
         camera.lookAt(0, 0, 0);
         controls.target.set(0, 0, 0);
         controls.update();
