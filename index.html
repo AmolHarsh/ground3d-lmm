@@ -996,7 +996,7 @@
         if (hasPose) {
           // Use the original Kinect camera pose, but pull back a bit so the
           // subject isn't packed against the near plane.
-          const PULLBACK = 2.0; // 2x the original eye→target distance
+          const PULLBACK = 1.6; // 1.6x the original eye→target distance
           const offset = new THREE.Vector3().subVectors(eyeAttr, targetAttr).multiplyScalar(PULLBACK);
           camera.position.copy(targetAttr).add(offset);
           camera.up.copy(upAttr);
@@ -1010,7 +1010,7 @@
           controls.minDistance = radius * 0.2;
           controls.maxDistance = radius * 2.5;
           const flip = container.dataset.orbitFlip === 'true' ? -1 : 1;
-          camera.position.set(radius * 0.78 * flip, radius * -0.78 * flip, radius * 0.62);
+          camera.position.set(radius * 0.65 * flip, radius * -0.65 * flip, radius * 0.52);
           camera.lookAt(0, 0, 0);
           controls.target.set(0, 0, 0);
         }
