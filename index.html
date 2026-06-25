@@ -337,7 +337,7 @@
         <div class="demo-dot" style="background:#22c55e"></div>
         <div class="demo-label">3D Metric Estimation · ScanNet scene0423</div>
       </div>
-      <div class="ply-viewer" id="plyViewer1" data-ply="3d_examples/scene0423_redflowers_RGB_pred_overlay.ply" data-eye="4.985870,2.983851,1.337825" data-target="4.106547,2.959740,0.862209" data-up="-0.473160,-0.068934,0.878276" data-fov-y="44.940831">
+      <div class="ply-viewer" id="plyViewer1" data-ply="3d_examples/scene0423_redflowers_RGB_pred_overlay.ply">
         <div class="ply-loader" id="plyLoader1">loading scene…</div>
         <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
@@ -433,7 +433,7 @@
         <div class="demo-dot" style="background:#22c55e"></div>
         <div class="demo-label">3D Distance Estimation · ScanNet scene0578</div>
       </div>
-      <div class="ply-viewer" id="plyViewer4" data-ply="3d_examples/scene0578_tablebackpack_RGB_pred_overlay.ply" data-eye="2.514847,2.677099,1.408988" data-target="3.402565,2.533551,0.971551" data-up="0.439886,-0.015923,0.897913" data-fov-y="44.940831">
+      <div class="ply-viewer" id="plyViewer4" data-ply="3d_examples/scene0578_tablebackpack_RGB_pred_overlay.ply">
         <div class="ply-loader" id="plyLoader4">loading scene…</div>
         <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
@@ -505,7 +505,7 @@
         <div class="demo-dot" style="background:#22c55e"></div>
         <div class="demo-label">Relative Depth · ScanNet scene0193</div>
       </div>
-      <div class="ply-viewer" id="plyViewer10" data-ply="3d_examples/scene0193_bedmh_RGB_pred_overlay.ply" data-eye="1.465377,3.044830,1.627262" data-target="1.705017,2.097833,1.413323" data-up="0.090813,-0.197529,0.976082" data-fov-y="45.109378">
+      <div class="ply-viewer" id="plyViewer10" data-ply="3d_examples/scene0193_bedmh_RGB_pred_overlay.ply">
         <div class="ply-loader" id="plyLoader10">loading scene…</div>
         <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
@@ -994,19 +994,22 @@
         scene.add(obj);
 
         if (hasPose) {
-          // Use the original Kinect camera pose (world coords)
-          camera.position.copy(eyeAttr);
+          // Use the original Kinect camera pose, but pull back a bit so the
+          // subject isn't packed against the near plane.
+          const PULLBACK = 2.0; // 2x the original eye→target distance
+          const offset = new THREE.Vector3().subVectors(eyeAttr, targetAttr).multiplyScalar(PULLBACK);
+          camera.position.copy(targetAttr).add(offset);
           camera.up.copy(upAttr);
           camera.lookAt(targetAttr);
           controls.target.copy(targetAttr);
-          const eyeToTarget = eyeAttr.distanceTo(targetAttr);
-          controls.minDistance = Math.max(0.05, eyeToTarget * 0.1);
-          controls.maxDistance = Math.max(radius * 2.5, eyeToTarget * 8);
+          const dist = camera.position.distanceTo(targetAttr);
+          controls.minDistance = Math.max(0.05, dist * 0.15);
+          controls.maxDistance = Math.max(radius * 3.0, dist * 5);
         } else {
           // Generic orbit fallback (geometry was recentered above)
           controls.minDistance = radius * 0.2;
-          controls.maxDistance = radius * 2.0;
-          camera.position.set(radius * 0.62, -radius * 0.62, radius * 0.5);
+          controls.maxDistance = radius * 2.5;
+          camera.position.set(radius * 0.95, -radius * 0.95, radius * 0.75);
           camera.lookAt(0, 0, 0);
           controls.target.set(0, 0, 0);
         }
