@@ -337,7 +337,7 @@
         <div class="demo-dot" style="background:#22c55e"></div>
         <div class="demo-label">3D Metric Estimation · ScanNet scene0423</div>
       </div>
-      <div class="ply-viewer" id="plyViewer1" data-ply="3d_examples/scene0423_redflowers_RGB_pred_overlay.ply">
+      <div class="ply-viewer" id="plyViewer1" data-ply="3d_examples/scene0423_redflowers_RGB_pred_overlay.ply" data-orbit-flip="true">
         <div class="ply-loader" id="plyLoader1">loading scene…</div>
         <div class="ply-hint">drag · scroll · right-click pan</div>
       </div>
@@ -1009,7 +1009,8 @@
           // Generic orbit fallback (geometry was recentered above)
           controls.minDistance = radius * 0.2;
           controls.maxDistance = radius * 2.5;
-          camera.position.set(radius * 0.95, -radius * 0.95, radius * 0.75);
+          const flip = container.dataset.orbitFlip === 'true' ? -1 : 1;
+          camera.position.set(radius * 0.78 * flip, radius * -0.78 * flip, radius * 0.62);
           camera.lookAt(0, 0, 0);
           controls.target.set(0, 0, 0);
         }
