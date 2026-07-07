@@ -1,0 +1,96 @@
+# ===== IDE / Editor =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+build/
+dist/
+.eggs/
+pip-wheel-metadata/
+
+# ===== Virtual envs =====
+.env
+.venv/
+venv/
+env/
+
+# ===== Jupyter =====
+*.ipynb
+.ipynb_checkpoints/
+
+# ===== Training / Eval outputs =====
+work_dirs/
+.dist_test/
+val_oututs_joint/
+
+# ===== Logs =====
+*.log
+wandb/
+tensorboard_logs/
+runs/
+
+# ===== Model weights / data (too large for git) =====
+*.pth
+*.pt
+*.bin
+*.safetensors
+*.ckpt
+*.pkl
+*.npy
+*.npz
+*.tfrecord*
+
+# ===== Generated visualization =====
+*.ply
+*.obj
+*.glb
+
+# ===== HuggingFace cache =====
+.cache/
+
+# ===== Misc generated outputs =====
+scannet_reason3d_label_check_outputs/
+scannetpp_instruct3d_label_check_outputs/
+scanrefer_label_check_outputs/
+preds.json
+preds_gpt.json
+
+# ===== Data symlinks (user-managed local data layout) =====
+data/scannet/points
+data/scannet/super_points
+data/scannet/part_mask
+data/scannet/object_mask
+data/scannet/refined_qa_data
+data/scannet/frame_images
+data/scannet/*.pkl
+data/scannetpp/points
+data/scannetpp/super_points
+data/scannetpp/part_mask
+data/scannetpp/object_mask
+data/scannetpp/refined_qa_data
+data/scannetpp/frame_images
+data/scannetpp/*.pkl
+
+# Local-only assets (do not push these to main)
+temp/
+all_visual_*.pdf
+multiturn_visual_*.pdf
+method_figure.pdf
+data_annotation.pdf
+
+# macOS resource forks
+._*

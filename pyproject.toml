@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ground3d-lmm"
+version = "0.1.0"
+description = "Ground3D-LMM: Grounded 3D Scene Understanding with Large Multimodal Models"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Amol Harsh et al."},
+]
+keywords = [
+    "3D scene understanding",
+    "vision-language model",
+    "point cloud",
+    "instance segmentation",
+    "multimodal large language model",
+    "ScanNet",
+    "Qwen3-VL",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# Note: heavy CUDA-specific deps (torch, spconv, torch-scatter, mmcv) are NOT
+# listed here because they need specific CUDA-matched wheels. Install them via
+# `conda env create -f environment.yml` or following docs/INSTALL.md before
+# `pip install -e .`. This package's `install_requires` covers only pure-Python
+# additions on top of that environment.
+dependencies = [
+    "huggingface_hub>=0.20.0",
+    "plyfile",
+    "numpy<2.0",
+    "scipy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "black",
+]
+
+[project.urls]
+Homepage = "https://github.com/amolharsh/Ground3D-LMM"
+Repository = "https://github.com/amolharsh/Ground3D-LMM"
+"Bug Tracker" = "https://github.com/amolharsh/Ground3D-LMM/issues"
+Dataset = "https://huggingface.co/datasets/amolharsh/Ground3D_Dataset"
+
+[tool.setuptools]
+packages = ["uniseg3d"]
+
+[tool.setuptools.package-data]
+uniseg3d = ["*.py"]

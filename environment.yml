@@ -1,0 +1,50 @@
+name: ground3d
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+      # Build tooling — pin BEFORE anything that compiles. mmcv/MinkowskiEngine
+      # source builds fail on newer setuptools ("No module named 'pkg_resources'").
+      - setuptools<70
+      - wheel
+      - ninja
+
+      # PyTorch (CUDA 11.8 build)
+      - --extra-index-url https://download.pytorch.org/whl/cu118
+      - torch==2.4.1+cu118
+      - torchvision==0.19.1+cu118
+      - torchaudio==2.4.1+cu118
+
+      - openmim
+      - mmengine==0.10.7
+
+      # NOTE: mmcv / mmdet / mmdet3d are intentionally NOT listed here. mmcv 2.1.0
+      # has no prebuilt wheel for torch 2.4.1 and must be source-built with
+      # `--no-build-isolation`; mmdet/mmdet3d are then installed via `mim`. Also
+      # required is MinkowskiEngine 0.5.4 (a source build). After `conda env create`
+      # finishes, complete the install by following docs/INSTALL.md (steps 3, 4 & 4b).
+
+      # 3D sparse conv + scatter
+      - spconv-cu118==2.3.8
+      - --find-links https://data.pyg.org/whl/torch-2.4.0+cu118.html
+      - torch-scatter==2.1.2
+
+      # LLM stack
+      - transformers==4.57.6
+      - peft==0.18.1
+      - huggingface_hub>=0.20.0
+      - accelerate
+      - deepspeed
+
+      # Scientific
+      - numpy<2.0
+      - scipy
+      - scikit-learn
+      - plyfile
+
+      # Optional training utilities
+      - tensorboard
