@@ -9,7 +9,7 @@
 #     --checkpoint  <path>                                 (default: work_dirs/ground3dlmm/pytorch_model.pth)
 #     --variant     joint | 3d | auto                      (default: auto — detected from checkpoint LoRA rank)
 #     --gpus        <N>                                     (default: auto-detected)
-#     --out-root    <dir>                                   (default: val_oututs_joint)
+#     --out-root    <dir>                                   (default: val_outputs_<variant>)
 #     --mask-dump   <dir>                                   (optional: also dump per-QA masks -> viz / GM-delta)
 #
 # Variants:
@@ -31,7 +31,7 @@ SUB_TASKS=all
 CHECKPOINT=work_dirs/ground3dlmm/pytorch_model.pth
 VARIANT=auto
 GPUS=""
-OUT_ROOT=val_oututs_joint
+OUT_ROOT=""            # default set after variant is resolved (variant-specific, so 3d/joint outputs don't collide)
 MASK_DUMP=""
 
 while [ $# -gt 0 ]; do
@@ -104,6 +104,9 @@ if [ "$VARIANT" = auto ]; then
   esac
 fi
 [ "$VARIANT" = 3d ] && CONFIG_SUFFIX="_3d" || CONFIG_SUFFIX=""
+# Default output root is variant-specific so a 3d run never overwrites a joint run's predictions
+# (and vice versa). Override with --out-root to choose your own.
+[ -z "$OUT_ROOT" ] && OUT_ROOT="val_outputs_$VARIANT"
 
 ALL_SUB_TASKS="functional_part_grounding functional_object_grounding scale_comparison_size \
 distance_estimation relative_position_forward_reasoning relative_depth_forward \

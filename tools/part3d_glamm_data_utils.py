@@ -217,3 +217,222 @@ class Part3DGlammData(object):
             if info is not None:
                 infos.append(info)
         return infos
+
+
+# ----------------------------------------------------------------------------
+# Whole-scene (ScanNet) grounding/reasoning datasets.
+#
+# Unlike ``Part3DGlammData`` (single-view partial frames), the two classes
+# below operate on entire ScanNet scenes. They reuse the pre-processed
+# ScanNet point clouds / superpoints / instance labels / aligned boxes (the
+# ``scannet_instance_data/`` produced by the standard ScanNet converter) and
+# attach per-scene question/answer annotations.
+# ----------------------------------------------------------------------------
+
+# ScanNet-18 detection classes (shared by ScanRefer / Reason3D).
+SCANNET_GROUNDING_CLASSES = [
+    'cabinet', 'bed', 'chair', 'sofa', 'table', 'door', 'window',
+    'bookshelf', 'picture', 'counter', 'desk', 'curtain', 'refrigerator',
+    'showercurtrain', 'toilet', 'sink', 'bathtub', 'garbagebin', 'unknown',
+]
+
+
+class _ScanNetSceneGroundingData(object):
+    """Shared logic for whole-scene ScanNet grounding datasets.
+
+    Builds per-scene infos from pre-processed ScanNet data plus per-scene QA
+    annotations. The points / superpoints / instance masks / aligned boxes are
+    read from ``<root_path>/scannet_instance_data/``; the per-point semantic
+    label (ScanNet-200) and the instance label used downstream come from the
+    matching ``<scene>_reason.pth`` tensor.
+
+    Args:
+        root_path (str): Root of the pre-processed ScanNet data (contains
+            ``scannet_instance_data/``).
+        qa_data_dir (str): Directory holding the per-scene QA JSON.
+        reason_pth_dir (str): Directory holding ``<split>/<scene>_reason.pth``.
+        split (str): One of ``train`` / ``val`` / ``test``.
+        save_path (str, optional): Where to write ``points/`` etc. and the pkl.
+            Defaults to ``root_path``.
+    """
+
+    # ``<split>`` is substituted to locate the QA JSON; subclasses set this.
+    qa_json_template = None
+
+    def __init__(self, root_path, qa_data_dir, reason_pth_dir,
+                 split='train', save_path=None):
+        assert split in ('train', 'val', 'test')
+        assert self.qa_json_template is not None, \
+            'subclasses must set qa_json_template'
+        self.root_dir = root_path
+        self.save_path = root_path if save_path is None else save_path
+        self.qa_data_dir = qa_data_dir
+        self.reason_pth_dir = reason_pth_dir
+        self.split = split
+        self.test_mode = (split == 'test')
+
+        self.classes = list(SCANNET_GROUNDING_CLASSES)
+        self.cat2label = {cat: i for i, cat in enumerate(self.classes)}
+        self.label2cat = {i: cat for cat, i in self.cat2label.items()}
+
+        qa_file = osp.join(self.qa_data_dir,
+                           self.qa_json_template.format(split=split))
+        self.qa_files = json.load(open(qa_file, 'r'))
+        sample_id_list = list(self.qa_files.keys())
+        self.sample_id_list = [s for s in sample_id_list
+                               if s.startswith('scene')]
+
+    def __len__(self):
+        return len(self.sample_id_list)
+
+    # ---- raw-data accessors ------------------------------------------------
+    def get_aligned_bbox_label(self, idx):
+        box_file = osp.join(self.root_dir, 'scannet_instance_data',
+                            f'{idx}_aligned_bbox.npy')
+        mmengine.check_file_exist(box_file)
+        return np.load(box_file)
+
+    def get_axis_align_matrix(self, idx):
+        matrix_file = osp.join(self.root_dir, 'scannet_instance_data',
+                               f'{idx}_axis_align_matrix.npy')
+        mmengine.check_file_exist(matrix_file)
+        return np.load(matrix_file)
+
+    def _read_reason_pth(self, idx):
+        """Load ``(coords, colors, superpoint, semantic_gt200,
+        instance_labels)`` from ``<reason_pth_dir>/<split>/<scene>_reason.pth``."""
+        import torch
+        pth_path = osp.join(self.reason_pth_dir, self.split,
+                            f'{idx}_reason.pth')
+        mmengine.check_file_exist(pth_path)
+        return torch.load(pth_path, map_location='cpu')
+
+    # ---- subclass hooks ----------------------------------------------------
+    def _instance_mask(self, idx, reason_data):
+        """Return the per-point instance label to persist for this scene."""
+        raise NotImplementedError
+
+    def get_infos(self, num_workers=4, has_label=True, sample_id_list=None):
+        """Build per-scene infos consumed by ``update_pkl_infos``."""
+
+        def process_single_scene(sample_idx):
+            import torch
+            info = dict()
+            info['point_cloud'] = {'num_features': 6, 'lidar_idx': sample_idx}
+
+            pts_filename = osp.join(self.root_dir, 'scannet_instance_data',
+                                    f'{sample_idx}_vert.npy')
+            points = np.load(pts_filename)
+            mmengine.mkdir_or_exist(osp.join(self.save_path, 'points'))
+            points.tofile(osp.join(self.save_path, 'points',
+                                   f'{sample_idx}.bin'))
+            info['pts_path'] = osp.join('points', f'{sample_idx}.bin')
+
+            sp_filename = osp.join(self.root_dir, 'scannet_instance_data',
+                                   f'{sample_idx}_sp_label.npy')
+            super_points = np.load(sp_filename)
+            mmengine.mkdir_or_exist(osp.join(self.save_path, 'super_points'))
+            super_points.tofile(osp.join(self.save_path, 'super_points',
+                                         f'{sample_idx}.bin'))
+            info['super_pts_path'] = osp.join('super_points',
+                                              f'{sample_idx}.bin')
+
+            if not self.test_mode:
+                reason_data = self._read_reason_pth(sample_idx)
+
+                pts_instance_mask = self._instance_mask(
+                    sample_idx, reason_data).astype(np.int64)
+                mmengine.mkdir_or_exist(
+                    osp.join(self.save_path, 'instance_mask'))
+                pts_instance_mask.tofile(
+                    osp.join(self.save_path, 'instance_mask',
+                             f'{sample_idx}.bin'))
+                info['pts_instance_mask_path'] = osp.join(
+                    'instance_mask', f'{sample_idx}.bin')
+
+                # _reason.pth fields:
+                #   (coords, colors, superpoint, semantic_gt200, instance_labels)
+                semantic_gt200 = reason_data[3]
+                if isinstance(semantic_gt200, torch.Tensor):
+                    semantic_gt200 = semantic_gt200.numpy()
+                pts_semantic_mask = semantic_gt200.astype(np.int64)
+                mmengine.mkdir_or_exist(
+                    osp.join(self.save_path, 'semantic_mask'))
+                pts_semantic_mask.tofile(
+                    osp.join(self.save_path, 'semantic_mask',
+                             f'{sample_idx}.bin'))
+                info['pts_semantic_mask_path'] = osp.join(
+                    'semantic_mask', f'{sample_idx}.bin')
+
+                info['qa_data'] = self.qa_files[sample_idx]
+
+            if has_label:
+                annotations = {}
+                aligned_box_label = self.get_aligned_bbox_label(sample_idx)
+                annotations['gt_num'] = aligned_box_label.shape[0]
+                if annotations['gt_num'] != 0:
+                    aligned_box = aligned_box_label[:, :-1]  # k, 6
+                    classes = aligned_box_label[:, -1]  # k
+                    annotations['name'] = np.array([
+                        self.label2cat.get(
+                            int(classes[i]) % len(self.classes), 'unknown')
+                        for i in range(annotations['gt_num'])
+                    ])
+                    annotations['location'] = aligned_box[:, :3]
+                    annotations['dimensions'] = aligned_box[:, 3:6]
+                    annotations['gt_boxes_upright_depth'] = aligned_box
+                    annotations['index'] = np.arange(
+                        annotations['gt_num'], dtype=np.int32)
+                    annotations['class'] = np.array([
+                        self.cat2label.get(
+                            self.label2cat.get(
+                                int(classes[i]) % len(self.classes),
+                                'unknown'), 0)
+                        for i in range(annotations['gt_num'])
+                    ])
+                annotations['axis_align_matrix'] = \
+                    self.get_axis_align_matrix(sample_idx)  # 4x4
+                info['annos'] = annotations
+            return info
+
+        ids = sample_id_list if sample_id_list is not None \
+            else self.sample_id_list
+        infos = []
+        for sample_idx in tqdm(ids, desc=f'{self.split} processing'):
+            infos.append(process_single_scene(sample_idx))
+        return infos
+
+
+class ScanReferData(_ScanNetSceneGroundingData):
+    """Whole-scene ScanRefer grounding dataset.
+
+    Reads ``ScanRefer_filtered_{split}_by_scene.json`` for per-scene
+    descriptions and uses the ``instance_labels`` field of ``<scene>_reason.pth``
+    as the per-point instance mask.
+    """
+
+    qa_json_template = 'ScanRefer_filtered_{split}_by_scene.json'
+
+    def _instance_mask(self, idx, reason_data):
+        import torch
+        instance_labels = reason_data[4]
+        if isinstance(instance_labels, torch.Tensor):
+            instance_labels = instance_labels.numpy()
+        return np.asarray(instance_labels)
+
+
+class Reason3dData(_ScanNetSceneGroundingData):
+    """Whole-scene Reason3D grounding/reasoning dataset.
+
+    Reads ``reason3d_scannet_{split}_by_scene.json`` for per-scene reasoning
+    questions and uses the pre-processed ScanNet instance label
+    (``<scene>_ins_label.npy``) as the per-point instance mask.
+    """
+
+    qa_json_template = 'reason3d_scannet_{split}_by_scene.json'
+
+    def _instance_mask(self, idx, reason_data):
+        ins_file = osp.join(self.root_dir, 'scannet_instance_data',
+                            f'{idx}_ins_label.npy')
+        mmengine.check_file_exist(ins_file)
+        return np.load(ins_file)

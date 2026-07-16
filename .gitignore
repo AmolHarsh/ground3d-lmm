@@ -94,3 +94,6 @@ data_annotation.pdf
 
 # macOS resource forks
 ._*
+
+# local install/setup logs (not part of the release)
+_setup_logs/

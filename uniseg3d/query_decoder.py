@@ -1300,8 +1300,7 @@ class Grounded_Decoder_Joint(QueryDecoder):
                 image_dir = self.scannetpp_image_dir
 
 
-            image_path = (None if image_dir is None
-                          else os.path.join(image_dir, scene_name, frame_id + '.jpg'))
+            image_path = os.path.join(image_dir, scene_name, frame_id + '.jpg')
 
             if self.training and n_points > self.max_point_tokens:
                 if i_point_pos is not None and i_point_pos.shape[0] == n_points:
@@ -1423,8 +1422,8 @@ class Grounded_Decoder_Joint(QueryDecoder):
     
     def _prepare_messages_data(self, messages, point_embeds):
         """Prepare model input data"""
-        # 3D-only checkpoint (image_dir=None) yields image entries with image=None;
-        # drop them so the QA message is point + text only (no vision tokens).
+        # 3D-only checkpoint (model.decoder.image_dir=None) yields image entries with
+        # image=None; drop them so the QA message is point + text only (no vision tokens).
         for _m in messages:
             if isinstance(_m.get('content'), list):
                 _m['content'] = [_c for _c in _m['content'] if not (
@@ -1649,8 +1648,7 @@ class Grounded_Decoder_Joint(QueryDecoder):
             else:
                 image_dir = self.scannetpp_image_dir
 
-            image_path = (None if image_dir is None
-                          else os.path.join(image_dir, scene_name, frame_id + '.jpg'))
+            image_path = os.path.join(image_dir, scene_name, frame_id + '.jpg')
             point_embeds = self.point2token(i_point_feat).to(self.reason_model.device)
             
             pred_qa_data = {}
@@ -2601,8 +2599,8 @@ class Grounded_Decoder_Eval(QueryDecoder):
     
     def _prepare_messages_data(self, messages, point_embeds):
         """Prepare model input data"""
-        # 3D-only checkpoint (image_dir=None) yields image entries with image=None;
-        # drop them so the QA message is point + text only (no vision tokens).
+        # 3D-only checkpoint (model.decoder.image_dir=None) yields image entries with
+        # image=None; drop them so the QA message is point + text only (no vision tokens).
         for _m in messages:
             if isinstance(_m.get('content'), list):
                 _m['content'] = [_c for _c in _m['content'] if not (
@@ -3093,3 +3091,237 @@ class Grounded_Decoder_Eval(QueryDecoder):
         else:
             return self.forward_simple(x, scene_names=scene_names, qa_data=qa_data)
 
+
+
+@MODELS.register_module()
+class Grounded_Decoder_Eval_MultiImg(Grounded_Decoder_Eval):
+    """Multi-image evaluation variant of :class:`Grounded_Decoder_Eval`.
+
+    The single-frame parent looks up exactly one RGB frame per query by
+    splitting the scene id on ``_frame_``. ScanRefer / Reason3D scene ids are
+    bare (e.g. ``scene0011_00``) and come with a folder of multi-view frames,
+    so this subclass instead loads every ``*.jpg`` under
+    ``image_dir/<scene_name>/`` and feeds all of them, ordered by their numeric
+    basename, alongside the point tokens and question. Generation settings are
+    identical to the parent (greedy decoding).
+    """
+
+    def _process_single_turn_qa(self, i_qa_data, point_embeds, n_points, target_dtype,
+                                pred_qa_data, query_token_list, image_content):
+        """Handle single-turn QA data with a list of image content entries."""
+
+        qa_level = i_qa_data['qa_level']
+        i_key = i_qa_data['qa_key']
+        i_task_type = i_qa_data['qa_task_type']
+
+        # convert tuple-form keys to plain strings
+        qa_level = qa_level[0] if isinstance(qa_level, list) else qa_level
+        i_key = i_key[0] if isinstance(i_key, list) else i_key
+        i_task_type = i_task_type[0] if isinstance(i_task_type, list) else i_task_type
+
+        question = self._get_text(i_qa_data['question'])
+        gt_answer = self._get_text(i_qa_data['answer'])
+        input_txt = PART_GLAMM_INSTRUCTION_IMG.format(question=question, point=self.point_token * n_points)
+
+        message_content = list(image_content)
+        message_content.append({'type': 'text', 'text': input_txt})
+        messages = [{'role': 'user', 'content': message_content}]
+
+        # prepare data
+        data = self._prepare_messages_data(messages, point_embeds)
+        data = self._prepare_data_for_device(data, target_dtype)
+
+        # generate response
+        outputs = self._generate_response(data, target_dtype)
+        seq = outputs.sequences
+
+        # decode output
+        output_ids = seq[:, data['input_ids'].shape[1]:]
+        output_text = self.processor.batch_decode(output_ids, skip_special_tokens=False)
+
+        # store predictions
+        if qa_level not in pred_qa_data:
+            pred_qa_data[qa_level] = {}
+        if i_key not in pred_qa_data[qa_level]:
+            pred_qa_data[qa_level][i_key] = {}
+        if i_task_type not in pred_qa_data[qa_level][i_key]:
+            pred_qa_data[qa_level][i_key][i_task_type] = []
+
+        pred_qa_data[qa_level][i_key][i_task_type].append({
+            'question': question,
+            'gt_answer': gt_answer,
+            'pred_answer': output_text[0]
+        })
+
+        prompt_mask = data["attention_mask"].to(seq.device)
+        new_len = seq.size(1) - prompt_mask.size(1)
+        full_mask = torch.cat(
+            [prompt_mask, torch.ones(prompt_mask.size(0), new_len, device=seq.device, dtype=prompt_mask.dtype)],
+            dim=1
+        )
+
+        forward_inputs = dict(data)
+        forward_inputs["input_ids"] = seq
+        forward_inputs["attention_mask"] = full_mask
+
+        query_token = self._get_hidden_states_and_query_token(forward_inputs, target_dtype, output_ids, output_text)
+        query_token_list.append(query_token)
+
+    def infer_reason_eval(self, point_feats, qa_data, point_positions=None, IGNORE_INDEX=-100, scene_names=None):
+        new_point_feat = []
+        language_losses = []
+        query_tokens_concat_list = []
+
+        # precompute target_dtype to avoid repeated computation
+        target_dtype = self._get_target_dtype()
+
+        for i in range(len(point_feats)):
+            i_scene_name = scene_names[i]
+            i_point_feat = point_feats[i]
+            n_points = i_point_feat.shape[0]
+
+            # load all frames for this scene, ordered by numeric basename
+            image_root = os.path.join(self.image_dir, i_scene_name)
+            image_path_list = sorted(
+                [os.path.join(image_root, f) for f in os.listdir(image_root)
+                 if f.lower().endswith('.jpg') and not f.startswith('._')],
+                key=lambda p: int(''.join(filter(str.isdigit, os.path.basename(p))) or '0')
+            )
+
+            image_content = [
+                {'type': 'image', 'image': image_path,
+                 'max_pixels': 448 * 448, 'min_pixels': 224 * 224}
+                for image_path in image_path_list
+            ]
+
+            point_embeds = self.point2token(i_point_feat).to(self.reason_model.device)
+
+            pred_qa_data = {}
+            query_token_list = []
+
+            for i_qa_data in qa_data:
+                self._process_single_turn_qa(
+                    i_qa_data, point_embeds, n_points, target_dtype,
+                    pred_qa_data, query_token_list, image_content
+                )
+
+            query_tokens_concat_list.append(query_token_list)
+
+            # save predictions to a JSON file
+            with open(os.path.join(self.save_pred_qa_dir, f'{i_scene_name}.json'), 'w') as f:
+                json.dump(pred_qa_data, f, indent=4)
+
+        return new_point_feat, language_losses, query_tokens_concat_list
+
+
+@MODELS.register_module()
+class Grounded_Decoder_Eval_Text(Grounded_Decoder_Eval):
+    """Text-only (3D) evaluation variant of :class:`Grounded_Decoder_Eval`.
+
+    The single-frame parent looks up exactly one RGB frame per query by
+    splitting the scene id on ``_frame_`` and feeds that image alongside the
+    point tokens. ScanRefer / Reason3D 3D rows use bare scene ids
+    (e.g. ``scene0011_00``) and supply no image, so this subclass instead uses
+    the bare ``i_scene_name`` directly and builds a text-only prompt
+    (``PART_GLAMM_INSTRUCTION``) from the point tokens and question. Generation
+    settings are inherited from the parent (greedy decoding).
+    """
+
+    def _process_single_turn_qa(self, i_qa_data, point_embeds, n_points, target_dtype,
+                                pred_qa_data, query_token_list):
+        """Handle single-turn QA data with no image (text prompt only)."""
+
+        qa_level = i_qa_data['qa_level']
+        i_key = i_qa_data['qa_key']
+        i_task_type = i_qa_data['qa_task_type']
+
+        # convert tuple-form keys to plain strings
+        qa_level = qa_level[0] if isinstance(qa_level, list) else qa_level
+        i_key = i_key[0] if isinstance(i_key, list) else i_key
+        i_task_type = i_task_type[0] if isinstance(i_task_type, list) else i_task_type
+
+        question = self._get_text(i_qa_data['question'])
+        gt_answer = self._get_text(i_qa_data['answer'])
+        input_txt = PART_GLAMM_INSTRUCTION.format(question=question, point=self.point_token * n_points)
+
+        # text-only message: point tokens + question, no image
+        messages = [{'role': 'user', 'content': input_txt}]
+
+        # prepare data
+        data = self._prepare_messages_data(messages, point_embeds)
+        data = self._prepare_data_for_device(data, target_dtype)
+
+        # generate response (greedy, inherited settings)
+        outputs = self._generate_response(data, target_dtype)
+        seq = outputs.sequences
+
+        # decode output
+        output_ids = seq[:, data['input_ids'].shape[1]:]
+        output_text = self.processor.batch_decode(output_ids, skip_special_tokens=False)
+
+        # store predictions
+        if qa_level not in pred_qa_data:
+            pred_qa_data[qa_level] = {}
+        if i_key not in pred_qa_data[qa_level]:
+            pred_qa_data[qa_level][i_key] = {}
+        if i_task_type not in pred_qa_data[qa_level][i_key]:
+            pred_qa_data[qa_level][i_key][i_task_type] = []
+
+        pred_qa_data[qa_level][i_key][i_task_type].append({
+            'question': question,
+            'gt_answer': gt_answer,
+            'pred_answer': output_text[0]
+        })
+
+        prompt_mask = data["attention_mask"].to(seq.device)
+        new_len = seq.size(1) - prompt_mask.size(1)
+        full_mask = torch.cat(
+            [prompt_mask, torch.ones(prompt_mask.size(0), new_len, device=seq.device, dtype=prompt_mask.dtype)],
+            dim=1
+        )
+
+        forward_inputs = dict(data)
+        forward_inputs["input_ids"] = seq
+        forward_inputs["attention_mask"] = full_mask
+
+        # if the model emitted no <SEG> token (a stray point token), fall back to a
+        # zero query embedding so the segmentation head still receives a valid tensor
+        if '<|point|>' not in output_text[0]:
+            query_token = self._get_hidden_states_and_query_token(forward_inputs, target_dtype, output_ids, output_text)
+        else:
+            query_token = torch.zeros(1, self.reason_mode_config.text_config.hidden_size, device=output_ids.device)
+
+        query_token_list.append(query_token)
+
+    def infer_reason_eval(self, point_feats, qa_data, point_positions=None, IGNORE_INDEX=-100, scene_names=None):
+        new_point_feat = []
+        language_losses = []
+        query_tokens_concat_list = []
+
+        # precompute target_dtype to avoid repeated computation
+        target_dtype = self._get_target_dtype()
+
+        for i in range(len(point_feats)):
+            i_scene_name = scene_names[i]
+            i_point_feat = point_feats[i]
+            n_points = i_point_feat.shape[0]
+
+            # bare scene id, no frame lookup and no image
+            point_embeds = self.point2token(i_point_feat).to(self.reason_model.device)
+
+            pred_qa_data = {}
+            query_token_list = []
+
+            for i_qa_data in qa_data:
+                self._process_single_turn_qa(
+                    i_qa_data, point_embeds, n_points, target_dtype,
+                    pred_qa_data, query_token_list
+                )
+
+            query_tokens_concat_list.append(query_token_list)
+
+            # save predictions to a JSON file
+            with open(os.path.join(self.save_pred_qa_dir, f'{i_scene_name}.json'), 'w') as f:
+                json.dump(pred_qa_data, f, indent=4)
+
+        return new_point_feat, language_losses, query_tokens_concat_list

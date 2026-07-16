@@ -257,20 +257,22 @@ so the Joint and 3D-only weights just work with the same command. Pass `--varian
 override. The old names `eval_ground3d_{scannet,scannetpp,all}.sh` still work — they're thin wrappers
 that pass flags through. Outputs:
 - **Segmentation mIoU** (printed per sub-task)
-- Per-scene prediction JSONs in `val_oututs_joint/{scannet,scannetpp}/pred_qa_data_val/...`
+- Per-scene prediction JSONs in `val_outputs_joint/{scannet,scannetpp}/pred_qa_data_val/...`
 
 > Add `--mask-dump <dir>` to also dump per-QA masks (needed for the **GM-δ** stage below, and used by
 > the grounding visualization).
 
 `tools/evaluate_text_metrics.py` runs **two independent stages** — pick what you need via `--stages`
 (`ape`, `judge`, or `all`). The `--input` dir is searched **recursively**, nested / multi-turn
-prediction JSONs are flattened automatically, and each sample is tagged with its task. Both LLMs run
-via **HuggingFace transformers** (the weights you pass to `--llm_model_path`). Sanity-check the
-numeric math with `python tools/evaluate_text_metrics.py --selftest`.
+prediction JSONs are flattened automatically, and each sample is tagged with its task. `ape` uses a
+text LLM (`--llm_model_path`, default `Qwen/Qwen3-4B-Instruct-2507`) to extract numbers; `judge` uses
+the paper's VL judge (`--judge_model_path`, default `Qwen/Qwen3-VL-4B-Instruct`). Both run via
+**HuggingFace transformers**. Sanity-check the numeric math with
+`python tools/evaluate_text_metrics.py --selftest`.
 
 ### Step 2 — `ape` : numeric APE + δ@1.25 (the 4 numeric tasks only)
 ```bash
-python tools/evaluate_text_metrics.py --input val_oututs_joint/scannet/pred_qa_data_val \
+python tools/evaluate_text_metrics.py --input val_outputs_joint/scannet/pred_qa_data_val \
     --output eval_results/scannet_ape.json --stages ape \
     --llm_model_path Qwen/Qwen3-4B-Instruct-2507 --gpus 0,1,2,3
 ```
@@ -279,14 +281,15 @@ Runs **only** on `distance_estimation`, `grounded_dimension_reasoning`, `scale_e
 prediction → `0.0` so it is penalised), then reports **APE** `|ŝ−s|/s×100%` and **δ@1.25** success
 (`δ = max(ŝ/s, s/ŝ) ≤ 1.25`; GT==0 pairs skipped; mean over pairs, then macro-averaged per task).
 
-### Step 3 — `judge` : rubric LLM judge — Hallucination + Completeness (all tasks)
+### Step 3 — `judge` : LLM judge — Hallucination + Completeness (all tasks)
 ```bash
-python tools/evaluate_text_metrics.py --input val_oututs_joint/scannet/pred_qa_data_val \
+python tools/evaluate_text_metrics.py --input val_outputs_joint/scannet/pred_qa_data_val \
     --output eval_results/scannet_judge.json --stages judge \
-    --llm_model_path Qwen/Qwen3-4B-Instruct-2507 --gpus 0,1,2,3
+    --judge_model_path Qwen/Qwen3-VL-4B-Instruct --gpus 0,1,2,3
 ```
-A text instruct LLM scores **Hallucination** and **Completeness** (0–10) per the paper rubric.
-Run both stages with `--stages all`.
+The Table-4 judge — **Qwen3-VL-4B-Instruct** — scores each prediction and reports **Hallucination**
+and **Completeness** (over all tasks). Run both stages with `--stages all` (the `ape` extractor
+stays on the text `Qwen3-4B-Instruct-2507`).
 
 ### Step 3b — `gmdelta` : GM-δ (supplementary, opt-in)
 GM-δ (Grounded-Measurement) counts a prediction correct only when **mask IoU > 0.3 AND δ ≤ 1.25**, on
@@ -300,7 +303,7 @@ bash eval_ground3d.sh --dataset all --levels part \
 
 # 2. GM-δ across all of them in a single run
 python tools/evaluate_text_metrics.py --stages gmdelta \
-    --input val_oututs_joint --mask_dump_dir masks \
+    --input val_outputs_joint --mask_dump_dir masks \
     --llm_model_path Qwen/Qwen3-4B-Instruct-2507 --gpus 0,1,2,3 --output eval_results/gmdelta.json
 ```
 It reports GM-δ **per (dataset, task)** and **overall**. `--gmdelta_task all` (default) auto-discovers
@@ -318,6 +321,22 @@ the numeric tasks; pass a single task name to restrict.
 > mIoU is computed per `(level, sub-task)` over the QAs that emit a `<SEG>` grounding. Every sub-task
 > grounds, so all of them get a mIoU — the only partial case is `existence_verification`, where the
 > pure yes/no answers carry no mask and are simply excluded from its mIoU.
+
+## 🔁 ScanRefer & Reason3D (Tables 5–6)
+
+Ground3D-LMM is also fine-tuned + evaluated on the ScanRefer and Reason3D referring/reasoning
+benchmarks, in both **3D** and **3D+2D** (point cloud + the scene's 20 RGB views) settings:
+
+| Row | Config | Checkpoint | mIoU |
+|---|---|---|---|
+| ScanRefer 3D | `configs/ground3dlmm_eval_scanrefer.py` | `Ground3D-LMM-ScanRefer-4B-3D` | 38.72 |
+| ScanRefer 3D+2D | `configs/ground3dlmm_eval_scanrefer_image.py` | `Ground3D-LMM-ScanRefer-4B-Joint` | 41.30 |
+| Reason3D 3D | `configs/ground3dlmm_eval_reason3d.py` | `Ground3D-LMM-Reason3D-4B-3D` | 36.35 |
+| Reason3D 3D+2D | `configs/ground3dlmm_eval_reason3d_image.py` | `Ground3D-LMM-Reason3D-4B-Joint` | 41.29 |
+
+Data prep (annotations → `*_infos.pkl` via `tools/create_data_{scanrefer,reason3d}.py`, and the
+20-view images via `tools/build_scene_images.py`) and the eval commands are in
+**[docs/DATA_SCANREFER_REASON3D.md](docs/DATA_SCANREFER_REASON3D.md)**.
 
 ## 🎨 Grounding visualization
 

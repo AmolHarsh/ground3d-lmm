@@ -4,13 +4,14 @@
 Two independent, selectable stages (``--stages``) — these are the **paper** text/numeric metrics
 (segmentation mIoU is the separate Step-1 evaluator, ``tools/test.py``):
 
-* ``ape``   — an LLM extracts numbers (in metres) from the **4 numeric tasks**, then computes
-              **APE** ``|s_hat - s|/s * 100%`` and **delta@1.25** success ``max(s_hat/s, s/s_hat) <= 1.25``.
-* ``judge`` — a rubric LLM judge scores **Hallucination** + **Completeness** (0-10) on **all** tasks.
+* ``ape``   — a text LLM (``--llm_model_path``) extracts numbers (in metres) from the **4 numeric
+              tasks**, then computes **APE** ``|s_hat - s|/s * 100%`` and **delta@1.25** success
+              ``max(s_hat/s, s/s_hat) <= 1.25``.
+* ``judge`` — the Table-4 judge, **Qwen3-VL-4B-Instruct** (``--judge_model_path``), scores each
+              prediction and reports **Hallucination + Completeness** (over **all** tasks).
 
-Both LLMs run via **HuggingFace transformers** (the weights you pass to ``--llm_model_path``) —
-**no vLLM / server required**. Run one stage or both (``--stages ape``, ``--stages judge``,
-``--stages all``).
+Both LLMs run via **HuggingFace transformers** — **no vLLM / server required**. Run one stage or
+both (``--stages ape``, ``--stages judge``, ``--stages all``).
 
 Numeric (APE/delta) tasks: ``distance_estimation``, ``grounded_dimension_reasoning``,
 ``scale_estimation``, ``scale_comparison_size``. Extraction shapes / parsing corner-cases and the
@@ -25,7 +26,8 @@ Examples::
 
     python tools/evaluate_text_metrics.py --input preds/ --output out.json --stages ape \
         --llm_model_path Qwen/Qwen3-4B-Instruct-2507 --gpus 0,1,2,3
-    python tools/evaluate_text_metrics.py --input preds/ --output out.json --stages judge ...
+    python tools/evaluate_text_metrics.py --input preds/ --output out.json --stages judge \
+        --judge_model_path Qwen/Qwen3-VL-4B-Instruct --gpus 0,1,2,3
     python tools/evaluate_text_metrics.py --selftest        # APE/delta unit test (no LLM, no data)
 
 Deps: ``transformers`` + ``torch`` (for the LLM). No nltk/rouge/sklearn needed.
@@ -113,20 +115,40 @@ def gather_samples(input_path: Path) -> List[Dict[str, Any]]:
 
 # =========================== local LLM (transformers) ===========================
 class LocalLLM:
-    """One HF causal LM, sharded across the given GPUs (device_map='auto'); deterministic chat."""
+    """One HF LM sharded across the given GPUs (device_map='auto'); deterministic (greedy) chat.
 
-    def __init__(self, model_path: str, gpus: str = ""):
+    ``backend='causal'`` (default) loads ``AutoModelForCausalLM`` — the text model used for APE
+    number-extraction and GM-delta. ``backend='vl'`` loads ``Qwen3VLForConditionalGeneration``
+    via ``AutoProcessor`` — the Table-4 **judge** (Qwen3-VL-4B-Instruct) that scores
+    Hallucination + Completeness."""
+
+    def __init__(self, model_path: str, gpus: str = "", backend: str = "causal"):
         import torch
-        from transformers import AutoModelForCausalLM, AutoTokenizer
         if gpus:
             os.environ["CUDA_VISIBLE_DEVICES"] = gpus
         self.torch = torch
-        print(f"[LLM] loading {model_path} (transformers, no vLLM) ...")
-        self.tok = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_path, torch_dtype=torch.float16, device_map="auto", trust_remote_code=True).eval()
+        self.backend = backend
+        print(f"[LLM] loading {model_path} (transformers backend={backend}, no vLLM) ...")
+        if backend == "vl":
+            from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
+            self.tok = AutoProcessor.from_pretrained(model_path, trust_remote_code=True)
+            self.model = Qwen3VLForConditionalGeneration.from_pretrained(
+                model_path, dtype="auto", device_map="auto", trust_remote_code=True).eval()
+        else:
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+            self.tok = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_path, torch_dtype=torch.float16, device_map="auto", trust_remote_code=True).eval()
 
     def chat(self, system: str, user: str, max_new_tokens: int = 512) -> str:
+        if self.backend == "vl":
+            msgs = [{"role": "system", "content": [{"type": "text", "text": system}]},
+                    {"role": "user", "content": [{"type": "text", "text": user}]}]
+            text = self.tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+            inputs = self.tok(text=[text], return_tensors="pt").to(self.model.device)
+            with self.torch.no_grad():
+                out = self.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+            return self.tok.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True)
         msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
         text = self.tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
         ids = self.tok(text, return_tensors="pt").to(self.model.device)
@@ -296,19 +318,77 @@ def stage_ape(samples, llm: "LocalLLM", tau: float) -> Dict[str, Any]:
     return summary
 
 
-# =========================== stage: judge (paper: hallucination + completeness) ===========================
-JUDGE_SYSTEM = ("You are an evaluation assistant for 3D indoor-scene question answering. Given a "
-                "question, a ground-truth answer, and a model's predicted answer, score the prediction. "
-                "Return ONLY a JSON object, nothing else.")
-JUDGE_USER = """Question: {q}
-Ground-truth answer: {gt}
-Predicted answer: {pred}
+# =========================== stage: judge (paper Table-4: Hallucination + Completeness) ===========================
+# The Table-4 judge is Qwen3-VL-4B-Instruct; it scores each prediction and reports
+# Hallucination + Completeness.
+JUDGE_SYSTEM = (
+    "You are an evaluation assistant. Given a user question, a ground-truth answer, "
+    "and a model's predicted answer, you must evaluate the prediction on several "
+    "dimensions on a scale from 1 to 10. Return ONLY a valid JSON object with numeric "
+    "fields and optional 'metric_accuracy_reason' and 'comments' fields."
+)
 
-Score each criterion on a 0-10 scale (paper rubric):
-- hallucination: 10 = no unsupported/fabricated claims about the scene (fully grounded in the ground truth); 0 = mostly hallucinated.
-- completeness: 10 = the prediction addresses every quantity/object the question asks for; 0 = misses them.
 
-Return exactly: {{"hallucination": <0-10>, "completeness": <0-10>}}"""
+def build_judge_user(q: str, gt: str, pred: str) -> str:
+    return f"""Question:
+{q}
+
+Ground truth answer:
+{gt}
+
+Model predicted answer:
+{pred}
+
+Please rate the following metrics from 1 to 10 (1 = very bad, 10 = excellent):
+
+- hallucination: How much the prediction contains fabricated or unsupported content
+  (10 = no hallucination, strictly supported by GT; 1 = mostly hallucinated).
+- accuracy: How factually correct and faithful the prediction is compared to the ground truth.
+- completeness: How completely the prediction covers the ground truth information.
+- reasoning_quality: How coherent and logically sound the reasoning is.
+
+Additionally, if there are any numeric metrics (numbers such as sizes, distances, thickness, counts, etc.)
+in BOTH the ground truth answer and the predicted answer, you must also:
+
+1. Compare corresponding numbers and estimate their percentage difference.
+2. Based on these numeric differences, assign a 'metric_accuracy' score from 1 to 10:
+   - 10 = numbers are almost identical (e.g., average percentage difference < 5%)
+   - 8-9 = small differences (e.g., 5% ~ 15%)
+   - 5-7 = moderate differences (e.g., 15% ~ 40%)
+   - 1-4 = large or very large differences (e.g., > 40% or severely incorrect)
+3. Provide a short explanation in 'metric_accuracy_reason' summarizing the numeric differences,
+   for example: "Predicted dimensions differ by ~18% on average from ground truth."
+
+If there are NO numeric metrics to compare, set:
+- metric_accuracy = null
+- metric_accuracy_reason = "No numeric metrics to compare."
+
+Return a JSON object with the following structure:
+
+{{
+  "hallucination": <number between 1 and 10>,
+  "accuracy": <number between 1 and 10>,
+  "completeness": <number between 1 and 10>,
+  "reasoning_quality": <number between 1 and 10>,
+  "metric_accuracy": <number between 1 and 10, or null if no numeric metrics>,
+  "metric_accuracy_reason": "<short numeric-difference explanation, or null>",
+  "comments": "<optional short overall explanation>"
+}}
+
+Do not include any text before or after the JSON."""
+
+
+def _parse_judge_json(resp: str) -> Optional[dict]:
+    s = re.sub(r"^```(?:json)?\s*|\s*```$", "", (resp or "").strip(), flags=re.S)
+    m = re.search(r"\{.*\}", s, re.S)
+    for cand in (s, m.group(0) if m else None):
+        if not cand:
+            continue
+        try:
+            return json.loads(cand)
+        except Exception:
+            pass
+    return None
 
 
 def stage_judge(samples, llm: "LocalLLM") -> Dict[str, Any]:
@@ -316,19 +396,17 @@ def stage_judge(samples, llm: "LocalLLM") -> Dict[str, Any]:
     h_sum = c_sum = 0.0
     n = 0
     for s in tqdm(samples, desc="judge"):
-        resp = llm.chat(JUDGE_SYSTEM, JUDGE_USER.format(q=clean_text(s.get("question", "")),
-                                                        gt=clean_text(s.get("gt_answer", "")),
-                                                        pred=clean_text(s.get("pred_answer", ""))),
-                        max_new_tokens=64)
-        try:
-            m = re.search(r"\{.*\}", resp, re.S)
-            d = json.loads(m.group(0))
-            h, c = float(d["hallucination"]), float(d["completeness"])
-        except Exception:
-            continue
-        h_sum += h
-        c_sum += c
-        n += 1
+        d = _parse_judge_json(llm.chat(
+            JUDGE_SYSTEM,
+            build_judge_user(s.get("question", ""), s.get("gt_answer", ""), s.get("pred_answer", "")),
+            max_new_tokens=512))
+        if d:
+            # keep the Hallucination + Completeness scores from the judge's JSON
+            hv, cv = d.get("hallucination"), d.get("completeness")
+            if isinstance(hv, (int, float)) and isinstance(cv, (int, float)):
+                h_sum += float(hv)
+                c_sum += float(cv)
+                n += 1
     if n == 0:
         return {"n_judged": 0}
     return {"hallucination": round(h_sum / n, 4), "completeness": round(c_sum / n, 4), "n_judged": n}
@@ -468,7 +546,9 @@ def main():
                          "or a single task name")
     ap.add_argument("--iou_thr", type=float, default=0.3, help="(gmdelta) mask IoU threshold")
     ap.add_argument("--llm_model_path", default="Qwen/Qwen3-4B-Instruct-2507",
-                    help="HF text LLM for ape-extraction + judge (transformers; no vLLM)")
+                    help="HF text LLM for ape-extraction + gmdelta (transformers causal; no vLLM)")
+    ap.add_argument("--judge_model_path", default="Qwen/Qwen3-VL-4B-Instruct",
+                    help="HF vision-language LLM for the Table-4 judge (paper: Qwen3-VL-4B-Instruct)")
     ap.add_argument("--gpus", default="0")
     ap.add_argument("--max_samples", type=int, default=0)
     ap.add_argument("--selftest", action="store_true", help="run the APE/delta unit test and exit")
@@ -485,17 +565,20 @@ def main():
         samples = samples[:args.max_samples]
     print(f"Loaded {len(samples)} samples; stages={sorted(stages)}")
 
-    llm = LocalLLM(args.llm_model_path, args.gpus) if (stages & {"ape", "judge", "gmdelta"}) else None
+    # APE-extraction + GM-delta use the text (causal) model; the judge uses the VL model.
+    extractor_llm = LocalLLM(args.llm_model_path, args.gpus) if (stages & {"ape", "gmdelta"}) else None
+    judge_llm = (LocalLLM(args.judge_model_path, args.gpus, backend="vl")
+                 if "judge" in stages else None)
     results: Dict[str, Any] = {"num_samples": len(samples), "stages": sorted(stages)}
     if "ape" in stages:
-        results["numeric_ape_delta"] = stage_ape(samples, llm, args.tau)
+        results["numeric_ape_delta"] = stage_ape(samples, extractor_llm, args.tau)
     if "judge" in stages:
-        results["llm_judge"] = stage_judge(samples, llm)
+        results["llm_judge"] = stage_judge(samples, judge_llm)
     if "gmdelta" in stages:
         if not args.mask_dump_dir:
             ap.error("--stages gmdelta requires --mask_dump_dir (per-QA masks from a Step-1 --mask-dump run)")
         gtasks = NUMERIC_TASKS if args.gmdelta_task == "all" else {args.gmdelta_task}
-        results["gm_delta"] = stage_gmdelta(Path(args.input), Path(args.mask_dump_dir), llm,
+        results["gm_delta"] = stage_gmdelta(Path(args.input), Path(args.mask_dump_dir), extractor_llm,
                                             gtasks, iou_thr=args.iou_thr, tau=args.tau)
 
     print("\n================ Results ================")
