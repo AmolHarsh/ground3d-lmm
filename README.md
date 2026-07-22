@@ -29,6 +29,7 @@ The architecture combines:
 
 ## 📢 News
 
+- **[Featured 📣]** *Ground3D-LMM* was featured by [52CV](https://mp.weixin.qq.com/s/ZH2NctV9Ycg8t4EVui7gIg), a leading Chinese computer-vision community WeChat account.
 - **[Accepted 🎉]** *Ground3D-LMM: Fine-Grained 3D Point Grounding and Spatial Reasoning with LMM* accepted to **ECCV 2026** (main conference).
 - **[Released]** Code and Ground3D dataset (2.47M Q/A pairs) released on Hugging Face.
 
