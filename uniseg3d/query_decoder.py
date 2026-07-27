@@ -29,6 +29,61 @@ import os
 
 IGNORE_INDEX = -100
 
+
+def preprocess_chatml(input_ids, text, tokenizer, qwen_model='qwen3_vl'):
+    """Build training labels from a ChatML conversation.
+
+    Loss is computed **only on the assistant replies**: every other span
+    (system prompt, user turns, role headers) is masked with ``IGNORE_INDEX``,
+    as is the trailing incomplete assistant turn (the generation prompt).
+
+    Args:
+        input_ids (torch.Tensor): ``(1, L)`` token ids of the full conversation.
+        text (str): the same conversation as a string (used to split rounds).
+        tokenizer: the LMM tokenizer (``self.processor.tokenizer``).
+        qwen_model (str): ``'qwen2_5_vl'`` or ``'qwen3_vl'`` — selects the
+            ChatML system prompt via :func:`~uniseg3d.conversation.get_conv`.
+
+    Returns:
+        torch.Tensor: labels shaped like ``input_ids``, masked with ``IGNORE_INDEX``.
+    """
+    conv = get_conv('chatml', qwen_model=qwen_model)
+    rounds = [m + conv.seps[0] for m in text.split(conv.seps[0])]
+
+    # the final chunk is the incomplete assistant turn -> never supervised
+    last_invalide_text = rounds[-1]
+    rounds = rounds[:-1]
+
+    if conv.system is None:
+        rounds = [''.join(rounds[i:i + 2]) for i in range(0, len(rounds), 2)]
+    else:
+        rounds = [''.join(rounds[:3])] + [''.join(rounds[i:i + 2]) for i in range(3, len(rounds), 2)]
+
+    labels = input_ids.clone()
+
+    sep = conv.seps[0] + conv.roles[1]
+    cur_len = 0
+
+    for rou in rounds:
+        if len(rou) == 0:
+            break
+
+        # mask everything up to and including the assistant header
+        ins = sep.join(rou.split(sep)[:-1]) + sep
+        rou_len = tokenizer(rou, return_length=True).length[0]
+        ins_len = tokenizer(ins, return_length=True).length[0]
+        labels[:, cur_len:cur_len + ins_len] = IGNORE_INDEX
+        cur_len += rou_len
+
+    if (labels == IGNORE_INDEX).sum() == labels.size(1):
+        raise ValueError('No valid labels found')
+
+    last_invalide = tokenizer(last_invalide_text, return_length=True).length[0]
+    labels[:, -last_invalide + 1:] = IGNORE_INDEX
+
+    return labels
+
+
 class ConvSetAggregator(nn.Module):
     """Aggregate variable-length point features into a fixed number of tokens
     using 1D convolution across the set dimension followed by adaptive pooling.
