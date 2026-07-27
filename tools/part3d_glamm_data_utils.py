@@ -108,15 +108,19 @@ class Part3DGlammData(object):
         self.qa_data_dir = qa_data_dir
         self.test_mode = (split == 'test')
 
-        # HF ships split lists as <root>/part_ground3d_{split}.txt
+        # HF ships split lists as <root>/part_ground3d_{split}.txt. The split is the
+        # authority on which scenes belong to a run: processed_data/ can legitimately
+        # hold point clouds for scenes that carry no Q/A, so falling back to "whatever
+        # is on disk" would silently build a different split than the released one.
         split_file = osp.join(root_path, f'part_ground3d_{split}.txt')
-        if os.path.exists(split_file):
-            scene_ids = set(mmengine.list_from_file(split_file))
-            self.sample_id_list = self._scan_frame_ids(scene_ids)
-        else:
-            print(f'Warning: split file {split_file} not found; using all '
-                  f'scenes under processed_data/.')
-            self.sample_id_list = self._scan_frame_ids(None)
+        if not os.path.exists(split_file):
+            raise FileNotFoundError(
+                f'Split file not found: {split_file}\n'
+                f'It ships with the dataset — re-download the {split} split from '
+                f'https://huggingface.co/datasets/amolharsh/Ground3D_Dataset '
+                f'(or point --root-path at the directory that contains it).')
+        scene_ids = set(mmengine.list_from_file(split_file))
+        self.sample_id_list = self._scan_frame_ids(scene_ids)
         print(f'{split}: {len(self.sample_id_list)} frames')
 
     # ---- HF nested-layout helpers ------------------------------------------

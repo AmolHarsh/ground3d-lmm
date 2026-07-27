@@ -126,8 +126,13 @@ Total **2,475,307 Q/A pairs** spanning 8 sub-tasks across ScanNet and ScanNet++ 
 | Source | Train scenes | Val scenes | Object QA | Part QA | Multi-turn | Total |
 |---|---:|---:|---:|---:|---:|---:|
 | ScanNet      | 1,433 |  80 | 655,760 |   909,905 | 62,064 | 1,627,729 |
-| ScanNet++    |   905 |  48 | 339,396 |   498,399 |  9,783 |   847,578 |
-| **Total**    | **2,338** | **128** | **995,156** | **1,408,304** | **71,847** | **2,475,307** |
+| ScanNet++    |   857 |  48 | 339,396 |   498,399 |  9,783 |   847,578 |
+| **Total**    | **2,290** | **128** | **995,156** | **1,408,304** | **71,847** | **2,475,307** |
+
+> Not every ScanNet++ scene could be used: many scenes in the ScanNet++ release are missing the depth
+> or mesh files our pipeline needs, and a few lost their Q/A during our VLM-based verification stage.
+> The scene count here may therefore differ slightly from the paper, since some scenes were listed but
+> held no Q/A and have been removed. **The total number of Q/A pairs is unchanged and matches the paper.**
 
 ### Sub-tasks
 1. `functional_part_grounding`
