@@ -76,6 +76,7 @@
   .gap-line{font-size:21px;font-weight:700;color:var(--text);max-width:780px;margin:0 auto 22px;line-height:1.4;letter-spacing:-.2px}
   .gap-line em{font-style:italic;color:var(--accent)}
   .soon{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;background:var(--bg3);color:var(--accent2);padding:2px 7px;border-radius:4px;margin-left:6px;letter-spacing:.3px;text-transform:uppercase;vertical-align:middle}
+  .dl-badge{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;background:rgba(52,211,153,.15);color:var(--accent3);padding:2px 7px;border-radius:4px;margin-left:8px;letter-spacing:.3px;vertical-align:middle;border:0.5px solid var(--accent3)}
   .venue-tag{display:inline-flex;align-items:center;gap:6px;background:var(--bg3);border:0.5px solid var(--border2);border-radius:20px;padding:4px 12px;font-size:11px;color:var(--accent2);font-family:var(--mono);margin-bottom:20px}
   .venue-tag span{width:6px;height:6px;background:var(--accent2);border-radius:50%;display:inline-block}
   h1{font-size:52px;font-weight:700;line-height:1.12;letter-spacing:-1px;margin-bottom:18px}
@@ -92,7 +93,7 @@
   .btn-icon{width:14px;height:14px;display:inline-block;vertical-align:middle}
 
   /* STATS STRIP */
-  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden;margin-bottom:64px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:10px;overflow:hidden;margin-bottom:64px}
   .stat{background:var(--card);padding:20px 22px}
   .stat-num{font-size:30px;font-weight:700;color:var(--accent);font-family:var(--mono);letter-spacing:-1px}
   .stat-lbl{font-size:13px;font-weight:600;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
@@ -303,7 +304,7 @@
     </p>
     <div class="hero-btns">
       <a href="https://arxiv.org/abs/2607.05493" id="paper" target="_blank" rel="noopener" class="btn-primary">📄 Read the Paper</a>
-      <a href="https://huggingface.co/datasets/amolharsh/Ground3D_Dataset" id="dataset-btn" target="_blank" rel="noopener" class="btn-secondary">🤗 Dataset</a>
+      <a href="https://huggingface.co/datasets/amolharsh/Ground3D_Dataset" id="dataset-btn" target="_blank" rel="noopener" class="btn-secondary">🤗 Dataset<span class="dl-badge" title="Hugging Face downloads">13k+</span></a>
       <a href="https://github.com/AmolHarsh/ground3d-lmm" id="code" target="_blank" rel="noopener" class="btn-secondary">⚙️ Code</a>
       <a href="#demo" class="btn-secondary">🎮 Demo</a>
     </div>
@@ -314,7 +315,6 @@
     <div class="stat"><div class="stat-num">2,400+</div><div class="stat-lbl">scenes</div></div>
     <div class="stat"><div class="stat-num">8</div><div class="stat-lbl">task types</div></div>
     <div class="stat"><div class="stat-num">59.98</div><div class="stat-lbl">Acc@0.25 on ScanRefer</div></div>
-    <div class="stat"><div class="stat-num">13k+</div><div class="stat-lbl">Dataset downloads</div></div>
   </div>
 
   <!-- VIDEO -->
