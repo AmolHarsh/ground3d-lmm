@@ -24,7 +24,7 @@
 The architecture combines:
 - **SpConvUNet** sparse 3D point encoder (from UniSeg3D)
 - **Qwen3-VL-4B** vision-language model with LoRA fine-tuning
-- **Mask2Former-style query decoder** with 2000 learned queries
+- **Mask2Former-style query decoder** (6 layers, 256-d)
 - **Superpoint pooling** for efficient cross-attention over scenes
 
 ## 📢 News
