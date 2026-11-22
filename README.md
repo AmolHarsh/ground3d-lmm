@@ -5,7 +5,7 @@
 # Ground3D-LMM: Fine-Grained 3D Point Grounding<br>and Spatial Reasoning with LMM
 
 [![arXiv](https://img.shields.io/badge/arXiv-2607.05493-b31b1b.svg?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2607.05493)
-[![ECCV 2026](https://img.shields.io/badge/ECCV-2026-4b8bbe.svg)](https://amolharsh.github.io/ground3d-lmm/)
+[![ECCV 2026](https://img.shields.io/badge/ECCV-2026-4b8bbe.svg)](https://doi.org/10.1007/978-3-032-37461-5_11)
 [![Project Page](https://img.shields.io/badge/Project-Website-1e6cb6.svg)](https://amolharsh.github.io/ground3d-lmm/)
 [![Dataset](https://img.shields.io/badge/Dataset-HuggingFace-fcd734.svg?logo=huggingface&logoColor=black)](https://huggingface.co/datasets/amolharsh/Ground3D_Dataset)
 [![License](https://img.shields.io/badge/License-Apache--2.0-4caf50.svg)](LICENSE)
@@ -420,11 +420,15 @@ If you find Ground3D-LMM useful for your research, please cite:
                    and Liu, Ye and Anwer, Rao Muhammad
                    and Cholakkal, Hisham and Khan, Salman
                    and Khan, Fahad Shahbaz},
-  booktitle     = {Proceedings of the European Conference on Computer Vision (ECCV)},
+  booktitle     = {Computer Vision -- ECCV 2026},
+  series        = {Lecture Notes in Computer Science},
+  volume        = {17025},
+  pages         = {195--212},
+  publisher     = {Springer},
   year          = {2026},
+  doi           = {10.1007/978-3-032-37461-5_11},
   eprint        = {2607.05493},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.CV}
+  archivePrefix = {arXiv}
 }
 ```
 
